@@ -1,0 +1,109 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reservation-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-reservation_db}
+      POSTGRES_USER: ${DB_USER:-reservation_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-reservation_user} -d ${DB_NAME:-reservation_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reservation-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: reservation-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reservation-net
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/ReservationSystem.API/Dockerfile
+    container_name: reservation-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${DB_NAME:-reservation_db};Username=${DB_USER:-reservation_user};Password=${DB_PASSWORD:-devpassword}
+      - Redis__ConnectionString=redis:6379
+      - Jwt__Secret=${JWT_SECRET:-dev-secret-key-minimum-32-characters-long}
+      - Jwt__Issuer=reservation-api
+      - Jwt__Audience=reservation-clients
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - reservation-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: reservation-frontend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000/api/v1
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - reservation-net
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: reservation-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - reservation-net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: reservation-pgadmin
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - reservation-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  reservation-net:
+    driver: bridge

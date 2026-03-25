@@ -1,0 +1,54 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.lock.json
+TestResults/
+coverage/
+*.nupkg
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Node / React
+node_modules/
+dist/
+.next/
+out/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vite/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Migrations (keep migrations, ignore snapshots if desired)
+# backend/src/ReservationSystem.Infrastructure/Persistence/Migrations/
+
+# Secrets
+*.pfx
+*.p12
+secrets.json
+appsettings.Production.json
