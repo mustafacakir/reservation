@@ -10,7 +10,7 @@ CMD ["npm", "run", "dev", "--", "--host"]
 # Build stage
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ARG VITE_DEV_TENANT_SLUG
