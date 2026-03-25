@@ -1,15 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
 using System.Text.Json;
 
 namespace ReservationSystem.Infrastructure.Tenancy;
 
-public class TenantService(
-    ILogger<TenantService> logger,
-    IDistributedCache cache) : ITenantService
+public class TenantService(IDistributedCache cache) : ITenantService
 {
     private Guid? _currentTenantId;
     private string? _currentTenantSlug;

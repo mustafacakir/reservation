@@ -23,6 +23,13 @@ public class ApplicationDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Exclude domain event types — they are not persisted
+        modelBuilder.Ignore<Domain.Common.DomainEvent>();
+        modelBuilder.Ignore<Domain.Events.BookingCreatedEvent>();
+        modelBuilder.Ignore<Domain.Events.BookingConfirmedEvent>();
+        modelBuilder.Ignore<Domain.Events.BookingCancelledEvent>();
+
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         ApplyTenantQueryFilters(modelBuilder);
     }
