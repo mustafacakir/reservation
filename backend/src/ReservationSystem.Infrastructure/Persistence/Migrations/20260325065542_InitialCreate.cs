@@ -69,7 +69,7 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     Bio = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
-                    Specializations = table.Column<List<string>>(type: "jsonb", nullable: false),
+                    Specializations = table.Column<List<string>>(type: "text[]", nullable: false),
                     HourlyRate = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true),
                     Currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
                     IsAcceptingClients = table.Column<bool>(type: "boolean", nullable: false),

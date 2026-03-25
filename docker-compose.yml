@@ -47,6 +47,8 @@ services:
       - Jwt__Secret=${JWT_SECRET:-dev-secret-key-minimum-32-characters-long}
       - Jwt__Issuer=reservation-api
       - Jwt__Audience=reservation-clients
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
     ports:
       - "5000:8080"
     depends_on:
@@ -102,6 +104,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  uploads_data:
 
 networks:
   reservation-net:

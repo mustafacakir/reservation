@@ -13,6 +13,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG VITE_DEV_TENANT_SLUG
+ENV VITE_DEV_TENANT_SLUG=$VITE_DEV_TENANT_SLUG
 RUN npm run build
 
 # Production stage

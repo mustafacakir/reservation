@@ -34,12 +34,14 @@ apiClient.interceptors.response.use(
       }
 
       try {
+        const slug = useTenantStore.getState().slug
         const response = await axios.post(
           `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/auth/refresh`,
           { refreshToken },
+          { headers: { 'Content-Type': 'application/json', ...(slug ? { 'X-Tenant-Slug': slug } : {}) } },
         )
-        const { accessToken } = response.data
-        useAuthStore.getState().setTokens(accessToken, refreshToken)
+        const { accessToken, refreshToken: newRefreshToken } = response.data
+        useAuthStore.getState().setTokens(accessToken, newRefreshToken)
         originalRequest.headers.Authorization = `Bearer ${accessToken}`
         return apiClient(originalRequest)
       } catch {

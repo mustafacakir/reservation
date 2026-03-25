@@ -11,6 +11,7 @@ export interface Booking {
   status: BookingStatus
   price: number
   currency: string
+  clientName?: string
   clientNotes?: string
   providerNotes?: string
   cancellationReason?: string

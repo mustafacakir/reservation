@@ -54,6 +54,9 @@ public class CreateBookingCommandHandler(
             request.StartUtc, endUtc, service.Price, service.Currency,
             request.ClientNotes);
 
+        // Auto-confirm all new bookings
+        booking.Confirm();
+
         await db.Bookings.AddAsync(booking, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 

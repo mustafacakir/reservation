@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ReservationSystem.Application.Users.Commands.LoginUser;
+using ReservationSystem.Application.Users.Commands.RefreshToken;
 using ReservationSystem.Application.Users.Commands.RegisterUser;
 
 namespace ReservationSystem.API.Controllers;
@@ -18,6 +19,13 @@ public class AuthController(IMediator mediator) : ControllerBase
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginUserCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command, CancellationToken ct)
     {
         var result = await mediator.Send(command, ct);
         return Ok(result);

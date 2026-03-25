@@ -1,89 +1,196 @@
 import { useState } from 'react'
+import { ChevronDown, ChevronUp, Check } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+const DAY_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
 
-interface DaySchedule {
-  enabled: boolean
-  startTime: string
-  endTime: string
+// Hours 0–23
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+function fmt(h: number) {
+  return `${String(h).padStart(2, '0')}:00`
 }
 
-const defaultSchedule: Record<number, DaySchedule> = {
-  0: { enabled: false, startTime: '09:00', endTime: '17:00' },
-  1: { enabled: true, startTime: '09:00', endTime: '17:00' },
-  2: { enabled: true, startTime: '09:00', endTime: '17:00' },
-  3: { enabled: true, startTime: '09:00', endTime: '17:00' },
-  4: { enabled: true, startTime: '09:00', endTime: '17:00' },
-  5: { enabled: true, startTime: '09:00', endTime: '17:00' },
-  6: { enabled: false, startTime: '09:00', endTime: '17:00' },
+// State per day: set of selected hours
+type DayHours = Set<number>
+
+const defaultDayHours: Record<number, DayHours> = {
+  0: new Set(),
+  1: new Set([9, 10, 11, 12, 13, 14, 15, 16]),
+  2: new Set([9, 10, 11, 12, 13, 14, 15, 16]),
+  3: new Set([9, 10, 11, 12, 13, 14, 15, 16]),
+  4: new Set([9, 10, 11, 12, 13, 14, 15, 16]),
+  5: new Set([9, 10, 11, 12, 13, 14, 15, 16]),
+  6: new Set(),
+}
+
+function hoursToSlots(dayIndex: number, hours: DayHours) {
+  if (hours.size === 0) return []
+  // Group consecutive hours into ranges
+  const sorted = [...hours].sort((a, b) => a - b)
+  const ranges: { start: number; end: number }[] = []
+  let start = sorted[0]
+  let prev = sorted[0]
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) {
+      prev = sorted[i]
+    } else {
+      ranges.push({ start, end: prev + 1 })
+      start = sorted[i]
+      prev = sorted[i]
+    }
+  }
+  ranges.push({ start, end: prev + 1 })
+
+  return ranges.map((r) => ({
+    dayOfWeek: dayIndex,
+    startTime: fmt(r.start),
+    endTime: fmt(r.end),
+  }))
 }
 
 export default function AvailabilityPage() {
-  const [schedule, setSchedule] = useState(defaultSchedule)
+  const [dayHours, setDayHours] = useState<Record<number, DayHours>>(defaultDayHours)
+  const [openDay, setOpenDay] = useState<number | null>(null)
   const qc = useQueryClient()
 
   const saveMutation = useMutation({
-    mutationFn: (data: typeof schedule) =>
+    mutationFn: (data: Record<number, DayHours>) =>
       apiClient.put('/availability/me/weekly', {
-        slots: Object.entries(data)
-          .filter(([, v]) => v.enabled)
-          .map(([day, v]) => ({
-            dayOfWeek: parseInt(day),
-            startTime: v.startTime,
-            endTime: v.endTime,
-          })),
+        slots: Object.entries(data).flatMap(([day, hours]) =>
+          hoursToSlots(parseInt(day), hours)
+        ),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['myAvailability'] }),
   })
 
-  const toggle = (day: number) =>
-    setSchedule((s) => ({ ...s, [day]: { ...s[day], enabled: !s[day].enabled } }))
+  const toggleHour = (day: number, hour: number) => {
+    setDayHours((prev) => {
+      const next = new Set(prev[day])
+      if (next.has(hour)) next.delete(hour)
+      else next.add(hour)
+      return { ...prev, [day]: next }
+    })
+  }
 
-  const update = (day: number, field: 'startTime' | 'endTime', value: string) =>
-    setSchedule((s) => ({ ...s, [day]: { ...s[day], [field]: value } }))
+  const toggleDay = (day: number) => {
+    setOpenDay((d) => (d === day ? null : day))
+  }
+
+  const clearDay = (day: number) => {
+    setDayHours((prev) => ({ ...prev, [day]: new Set() }))
+  }
+
+  const selectAll = (day: number) => {
+    setDayHours((prev) => ({ ...prev, [day]: new Set(HOURS.filter((h) => h >= 8 && h < 22)) }))
+  }
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Weekly Availability</h1>
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-        {DAYS.map((day, i) => (
-          <div key={day} className="flex items-center gap-4">
-            <button onClick={() => toggle(i)}
-              className={`w-24 text-sm font-medium py-1.5 rounded-lg border transition-colors ${
-                schedule[i].enabled
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'text-gray-500 border-gray-200 hover:border-gray-300'
-              }`}>
-              {day.slice(0, 3)}
-            </button>
-            {schedule[i].enabled ? (
-              <div className="flex items-center gap-2">
-                <input type="time" value={schedule[i].startTime}
-                  onChange={(e) => update(i, 'startTime', e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <span className="text-gray-400">—</span>
-                <input type="time" value={schedule[i].endTime}
-                  onChange={(e) => update(i, 'endTime', e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-            ) : (
-              <span className="text-sm text-gray-400">Unavailable</span>
-            )}
-          </div>
-        ))}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Haftalık Müsaitlik</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Ders verebileceğiniz gün ve saatleri belirleyin. Bir güne tıklayarak saatleri seçin.
+        </p>
+      </div>
 
-        <div className="pt-4">
-          <button onClick={() => saveMutation.mutate(schedule)}
-            disabled={saveMutation.isPending}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-60 transition-colors">
-            {saveMutation.isPending ? 'Saving...' : 'Save Schedule'}
-          </button>
-          {saveMutation.isSuccess && (
-            <span className="ml-3 text-sm text-green-600">Saved successfully!</span>
-          )}
-        </div>
+      <div className="space-y-2">
+        {DAYS.map((day, i) => {
+          const hours = dayHours[i]
+          const isOpen = openDay === i
+          const count = hours.size
+
+          return (
+            <div
+              key={day}
+              className="bg-white rounded-2xl border overflow-hidden transition-all"
+              style={isOpen ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 2px var(--color-primary-light, #ede9fe)' } : {}}
+            >
+              {/* Day header */}
+              <button
+                onClick={() => toggleDay(i)}
+                className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all ${count > 0 ? 'text-white' : 'bg-gray-100 text-gray-400'}`}
+                    style={count > 0 ? { background: 'var(--color-primary)' } : {}}
+                  >
+                  {DAY_SHORT[i]}
+                </span>
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">{day}</p>
+                    {count > 0 ? (
+                      <p className="text-xs text-gray-400 mt-0.5">{count} saat seçili</p>
+                    ) : (
+                      <p className="text-xs text-gray-300 mt-0.5">Müsait değil</p>
+                    )}
+                  </div>
+                </div>
+                {isOpen ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+              </button>
+
+              {/* Hour grid */}
+              {isOpen && (
+                <div className="px-5 pb-5 border-t border-gray-50">
+                  <div className="flex items-center justify-between py-3">
+                    <p className="text-xs font-medium text-gray-500">Saat seçin</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => selectAll(i)}
+                        className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
+                        style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                      >
+                        08–22 Tümü
+                      </button>
+                      <button
+                        onClick={() => clearDay(i)}
+                        className="text-xs px-2.5 py-1 rounded-lg font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      >
+                        Temizle
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {HOURS.map((h) => {
+                      const selected = hours.has(h)
+                      return (
+                        <button
+                          key={h}
+                          onClick={() => toggleHour(i, h)}
+                          className={`py-2 rounded-xl text-xs font-medium transition-all ${selected ? 'text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                          style={selected ? { background: 'var(--color-primary)' } : {}}
+                        >
+                          {fmt(h)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="pt-5 flex items-center gap-3">
+        <button
+          onClick={() => saveMutation.mutate(dayHours)}
+          disabled={saveMutation.isPending}
+          className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          style={{ background: 'var(--color-primary)' }}
+        >
+          {saveMutation.isPending ? 'Kaydediliyor…' : 'Kaydet'}
+        </button>
+        {saveMutation.isSuccess && (
+          <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+            <Check size={15} /> Kaydedildi
+          </span>
+        )}
+        {saveMutation.isError && <span className="text-sm text-red-500">Kayıt başarısız, tekrar deneyin.</span>}
       </div>
     </div>
   )

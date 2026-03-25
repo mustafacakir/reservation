@@ -302,7 +302,7 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
 
                     b.Property<List<string>>("Specializations")
                         .IsRequired()
-                        .HasColumnType("jsonb");
+                        .HasColumnType("text[]");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");

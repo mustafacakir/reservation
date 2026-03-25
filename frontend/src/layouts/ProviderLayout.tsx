@@ -1,37 +1,68 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import Logo from '@/components/landing/Logo'
 
 const navItems = [
-  { to: '/provider', label: 'Dashboard', end: true },
-  { to: '/provider/availability', label: 'Availability' },
-  { to: '/provider/services', label: 'My Services' },
+  { to: '/provider', label: 'Genel Bakış', icon: '🏠', end: true },
+  { to: '/provider/profile', label: 'Profilim', icon: '👤' },
+  { to: '/provider/availability', label: 'Müsaitlik', icon: '🗓️' },
+  { to: '/provider/services', label: 'Derslerim', icon: '📚' },
+  { to: '/provider/rezervasyon-ekle', label: 'Rezervasyon Ekle', icon: '➕' },
 ]
 
 export default function ProviderLayout() {
   const { fullName, logout } = useAuthStore()
+  const initials = fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b">
-          <span className="font-bold text-indigo-600">ReserveSaaS</span>
+    <div className="min-h-screen flex bg-gray-50">
+      <aside className="w-60 bg-white border-r border-gray-100 flex flex-col shadow-sm">
+        <div className="h-16 flex items-center px-5 border-b border-gray-100">
+          <Link to="/">
+            <Logo size="sm" />
+          </Link>
         </div>
-        <nav className="flex-1 px-4 py-4 space-y-1">
+
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end}
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'
-                }`}>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+                }`
+              }
+              style={({ isActive }) => isActive ? { background: 'var(--color-primary)' } : {}}
+            >
+              <span className="text-base">{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t">
-          <p className="text-sm font-medium text-gray-700 truncate">{fullName}</p>
-          <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700 mt-1">Sign out</button>
+
+        <div className="p-4 border-t border-gray-100 flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-800 truncate">{fullName}</p>
+            <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Çıkış Yap
+            </button>
+          </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto bg-gray-50 p-6"><Outlet /></main>
+
+      <main className="flex-1 overflow-auto px-6 pt-8 pb-6">
+        <div className="max-w-4xl mx-auto">
+          <Outlet />
+        </div>
+      </main>
     </div>
   )
 }

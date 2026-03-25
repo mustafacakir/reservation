@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ReservationSystem.Application.Bookings.Commands.CancelBooking;
 using ReservationSystem.Application.Bookings.Commands.CreateBooking;
+using ReservationSystem.Application.Bookings.Commands.CreateManualBooking;
 using ReservationSystem.Application.Bookings.Queries.GetMyBookings;
 
 namespace ReservationSystem.API.Controllers;
@@ -25,6 +26,13 @@ public class BookingsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetMyBookingsQuery(page, pageSize), ct);
         return Ok(result);
+    }
+
+    [HttpPost("manual")]
+    public async Task<IActionResult> CreateManual([FromBody] CreateManualBookingCommand command, CancellationToken ct)
+    {
+        var result = await mediator.Send(command, ct);
+        return CreatedAtAction(nameof(GetMyBookings), result);
     }
 
     [HttpPatch("{id}/cancel")]

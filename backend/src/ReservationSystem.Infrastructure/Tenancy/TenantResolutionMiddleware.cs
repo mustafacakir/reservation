@@ -10,7 +10,8 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
     // Paths that don't require a tenant context
     private static readonly string[] TenantExemptPaths =
     [
-        "/health", "/api/v1/super-admin", "/swagger", "/favicon.ico"
+        "/health", "/api/v1/super-admin", "/swagger", "/favicon.ico", "/api/v1/tenants",
+        "/api/v1/payments/callback", "/uploads"
     ];
 
     public async Task InvokeAsync(HttpContext context, ApplicationDbContext db, TenantService tenantService)
@@ -64,10 +65,6 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         // 2. From header: X-Tenant-Slug: math-masters
         if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var headerSlug))
             return headerSlug.ToString();
-
-        // 3. From query string (dev/testing only)
-        if (context.Request.Query.TryGetValue("tenant", out var querySlug))
-            return querySlug.ToString();
 
         return null;
     }

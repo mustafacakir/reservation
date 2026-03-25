@@ -11,11 +11,18 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://api:8080',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
+    },
+    // Windows host + Docker volume mount: filesystem events don't propagate,
+    // so Vite must poll for changes instead of relying on inotify.
+    watch: {
+      usePolling: true,
+      interval: 500,
     },
   },
 })

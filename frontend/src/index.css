@@ -3,11 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
+  /* Default theme — overridden at runtime by useSectorTheme */
+  --color-primary: #4f46e5;
+  --color-primary-dark: #3730a3;
+  --color-primary-light: #e0e7ff;
+  --color-accent: #818cf8;
+  --hero-gradient-from: #eef2ff;
+  --hero-gradient-to: #ffffff;
 }
 
 @layer base {

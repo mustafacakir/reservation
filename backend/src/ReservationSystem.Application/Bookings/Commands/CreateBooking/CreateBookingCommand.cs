@@ -21,5 +21,7 @@ public record BookingDto(
     DateTimeOffset EndUtc,
     string Status,
     decimal Price,
-    string Currency
+    string Currency,
+    string? ClientNotes = null,
+    string? ClientName = null
 );

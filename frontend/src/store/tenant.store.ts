@@ -17,8 +17,21 @@ interface TenantState {
   resolveFromHostname: () => void
 }
 
+function resolveSlugFromBrowser(): string | null {
+  const hostname = window.location.hostname
+  const parts = hostname.split('.')
+  // Works for: math-masters.localhost, math-masters.reservesaas.com
+  if (parts.length >= 2 && parts[0] !== 'www' && parts[0] !== 'app' && parts[0] !== 'localhost') {
+    return parts[0]
+  }
+  // Dev fallback: use VITE_DEV_TENANT_SLUG when running on plain localhost
+  return import.meta.env.VITE_DEV_TENANT_SLUG ?? null
+}
+
 export const useTenantStore = create<TenantState>()((set) => ({
-  slug: null,
+  // Resolve slug synchronously at store creation time so it's available
+  // before the first render and any API calls.
+  slug: resolveSlugFromBrowser(),
   name: null,
   sector: null,
   settings: null,
@@ -27,15 +40,7 @@ export const useTenantStore = create<TenantState>()((set) => ({
     set({ slug, name, sector, settings }),
 
   resolveFromHostname: () => {
-    const hostname = window.location.hostname
-    const parts = hostname.split('.')
-    if (parts.length >= 3 && parts[0] !== 'www' && parts[0] !== 'app') {
-      set({ slug: parts[0] })
-    } else {
-      // For local dev: use query param ?tenant=math-masters
-      const params = new URLSearchParams(window.location.search)
-      const tenant = params.get('tenant')
-      if (tenant) set({ slug: tenant })
-    }
+    const slug = resolveSlugFromBrowser()
+    set({ slug })
   },
 }))

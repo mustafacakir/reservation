@@ -13,9 +13,9 @@ public class ServiceProviderConfiguration : IEntityTypeConfiguration<Domain.Enti
         builder.Property(p => p.HourlyRate).HasPrecision(10, 2);
         builder.Property(p => p.AverageRating).HasPrecision(3, 2);
 
-        // Specializations stored as jsonb array
+        // Specializations stored as native PostgreSQL text array
         builder.Property(p => p.Specializations)
-            .HasColumnType("jsonb");
+            .HasColumnType("text[]");
 
         builder.HasIndex(p => p.UserId).IsUnique();
         builder.HasIndex(p => new { p.TenantId, p.IsAcceptingClients });

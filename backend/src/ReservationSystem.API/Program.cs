@@ -63,6 +63,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("AllowFrontend");
+app.UseStaticFiles();
 app.UseSerilogRequestLogging();
 
 // Global exception handler

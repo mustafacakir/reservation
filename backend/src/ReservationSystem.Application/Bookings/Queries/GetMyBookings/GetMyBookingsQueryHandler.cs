@@ -21,6 +21,7 @@ public class GetMyBookingsQueryHandler(
         var query = db.Bookings
             .Include(b => b.Service)
             .Include(b => b.Provider).ThenInclude(p => p.User)
+            .Include(b => b.Client)
             .AsQueryable();
 
         query = role switch
@@ -39,7 +40,8 @@ public class GetMyBookingsQueryHandler(
                 b.Id, b.ServiceId, b.Service.Name,
                 b.ProviderId, b.Provider.User.FullName,
                 b.StartUtc, b.EndUtc,
-                b.Status.ToString(), b.Price, b.Currency))
+                b.Status.ToString(), b.Price, b.Currency, b.ClientNotes,
+                b.Client.FullName))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<BookingDto>(items, total, request.Page, request.PageSize);

@@ -13,7 +13,7 @@ export default function AdminLayout() {
     <div className="min-h-screen flex">
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-gray-700">
-          <span className="font-bold">Admin Panel</span>
+          <span className="font-bold flex items-center gap-1.5"><span>📐</span><span>sevdailematematik</span></span>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-1">
           {navItems.map((item) => (

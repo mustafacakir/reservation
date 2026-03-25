@@ -1,6 +1,11 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ReservationSystem.Application.Availability.Queries.GetAvailableSlots;
+using ReservationSystem.Application.Common.Exceptions;
+using ReservationSystem.Application.ServiceProviders.Commands.UpdateMyProfile;
+using ReservationSystem.Application.ServiceProviders.Queries.GetMyProfile;
+using ReservationSystem.Application.ServiceProviders.Queries.GetProviderById;
 using ReservationSystem.Application.ServiceProviders.Queries.SearchProviders;
 
 namespace ReservationSystem.API.Controllers;
@@ -9,6 +14,22 @@ namespace ReservationSystem.API.Controllers;
 [Route("api/v1/providers")]
 public class ServiceProvidersController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetMyProfile(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetMyProfileQuery(), ct);
+        return Ok(result);
+    }
+
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileCommand command, CancellationToken ct)
+    {
+        await mediator.Send(command, ct);
+        return NoContent();
+    }
+
     [HttpGet]
     public async Task<IActionResult> Search(
         [FromQuery] string? specialization,
@@ -23,7 +44,21 @@ public class ServiceProvidersController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("{providerId}/available-slots")]
+    [HttpGet("{providerId:guid}")]
+    public async Task<IActionResult> GetById(Guid providerId, CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await mediator.Send(new GetProviderByIdQuery(providerId), ct);
+            return Ok(result);
+        }
+        catch (NotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpGet("{providerId:guid}/available-slots")]
     public async Task<IActionResult> GetAvailableSlots(
         Guid providerId,
         [FromQuery] Guid serviceId,

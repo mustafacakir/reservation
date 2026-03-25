@@ -21,5 +21,6 @@
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.11" />
     <PackageReference Include="MailKit" Version="4.8.0" />
     <PackageReference Include="MimeKit" Version="4.8.0" />
+    <PackageReference Include="Iyzipay" Version="2.1.61" />
   </ItemGroup>
 </Project>
