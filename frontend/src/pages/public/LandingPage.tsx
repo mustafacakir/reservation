@@ -321,17 +321,54 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Why us ── */}
+      {/* ── Why us / Teacher story ── */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Neden Sevda Öğretmen?</h2>
+            <p className="text-gray-500 max-w-xl mx-auto">Matematiği sevdiren, sonuç getiren, öğrencisinin yanında olan bir öğretmen</p>
           </div>
+
+          {/* Story card */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 mb-8">
+            <div className="flex flex-col sm:flex-row gap-6 items-start">
+              {teacher?.avatarUrl ? (
+                <img
+                  src={teacher.avatarUrl}
+                  alt={teacher.fullName}
+                  className="w-24 h-24 rounded-2xl object-cover flex-shrink-0 ring-4 ring-gray-50"
+                />
+              ) : (
+                <div
+                  className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-white flex-shrink-0"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {teacher?.fullName?.[0] ?? 'S'}
+                </div>
+              )}
+              <div className="flex-1">
+                <p className="text-gray-800 text-sm sm:text-base leading-relaxed mb-3">
+                  Öğrencilerimin büyük çoğunluğu bana <span className="font-semibold">"matematik benim işim değil"</span> diyerek gelir. Bu cümleyi yıllardır duyuyorum — ve yıllardır bunun doğru olmadığını görüyorum.
+                </p>
+                <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-3">
+                  Sorun matematikte değil, genellikle bir yerden kopulmuş olmakta. Hangi konuda kopulduğunu bulduk mu, geri kalan her şey yerine oturuyor. Bu yüzden her öğrenciye aynı ders anlatımını yapmıyorum — önce nerede olduğunu anlıyorum, sonra oradan ilerliyoruz.
+                </p>
+                <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+                  8 yıldır bu işi yapıyorum. Hâlâ en çok heyecanlandığım an, bir öğrencinin gözlerinde "anladım" ışığını görmek.
+                </p>
+                <p className="text-sm font-semibold mt-4" style={{ color: 'var(--color-primary)' }}>
+                  — {teacher?.fullName ?? 'Sevda Öğretmen'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
-              { Icon: Award, title: 'Uzman & Deneyimli', desc: 'Yılların deneyimiyle binlerce öğrenciye matematik öğretti.' },
-              { Icon: CalendarCheck, title: 'Esnek Randevu', desc: 'Sana uygun saat ve günde, istediğin yerden ders al.' },
-              { Icon: BookOpen, title: 'Kişisel Program', desc: 'Her öğrenciye özel müfredat, hedefe odaklı çalışma planı.' },
+              { Icon: Award, title: 'Uzman & Deneyimli', desc: '8 yılı aşkın deneyimle TYT\'den KPSS\'ye, ilkokuldan üniversiteye tüm seviyelerde başarılı sonuçlar.' },
+              { Icon: CalendarCheck, title: 'Esnek Randevu', desc: 'Hafta içi, hafta sonu, sabah veya akşam — sana uygun saat ve günde ders planla.' },
+              { Icon: BookOpen, title: 'Kişisel Program', desc: 'İlk derste seviye tespiti yapılır, sana özel müfredat ve çalışma planı hazırlanır.' },
             ].map(({ Icon, title, desc }) => (
               <div key={title} className="flex gap-4 p-5 rounded-2xl border border-gray-100 bg-white">
                 <div
