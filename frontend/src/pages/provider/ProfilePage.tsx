@@ -14,6 +14,8 @@ interface ProfileForm {
   avatarUrl: string
   bio: string
   specializations: string[]
+  hourlyRate: string
+  currency: string
 }
 
 export default function ProfilePage() {
@@ -24,9 +26,10 @@ export default function ProfilePage() {
   const [showEmoji, setShowEmoji] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiRef = useRef<HTMLDivElement>(null)
+  const formInitialized = useRef(false)
   const [form, setForm] = useState<ProfileForm>({
     firstName: '', lastName: '', avatarUrl: '',
-    bio: '', specializations: [],
+    bio: '', specializations: [], hourlyRate: '', currency: 'TRY',
   })
 
   const editor = useEditor({
@@ -46,7 +49,8 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (data) {
+    if (data && !formInitialized.current) {
+      formInitialized.current = true
       const bio = data.bio ?? ''
       setForm({
         firstName: data.firstName ?? '',
@@ -54,6 +58,8 @@ export default function ProfilePage() {
         avatarUrl: data.avatarUrl ?? '',
         bio,
         specializations: data.specializations ?? [],
+        hourlyRate: data.hourlyRate?.toString() ?? '',
+        currency: data.currency ?? 'TRY',
       })
       if (editor && bio) {
         editor.commands.setContent(bio)
@@ -69,8 +75,11 @@ export default function ProfilePage() {
         bio: f.bio,
         specializations: f.specializations,
         avatarUrl: f.avatarUrl || null,
+        hourlyRate: f.hourlyRate ? parseFloat(f.hourlyRate) : null,
+        currency: f.currency || 'TRY',
       }),
     onSuccess: () => {
+      formInitialized.current = false
       qc.invalidateQueries({ queryKey: ['myProfile'] })
       // update auth store fullName
       authState.setAuth({
@@ -101,6 +110,16 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // Anında preview için base64
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setForm((f) => ({ ...f, avatarUrl: ev.target!.result as string }))
+      }
+    }
+    reader.readAsDataURL(file)
+
     setUploading(true)
     try {
       const formData = new FormData()
@@ -164,6 +183,17 @@ export default function ProfilePage() {
                 style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
               />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Saatlik Ücret (₺)</label>
+            <input
+              type="number"
+              value={form.hourlyRate}
+              onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+              placeholder="ör. 300"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Profil Fotoğrafı</label>

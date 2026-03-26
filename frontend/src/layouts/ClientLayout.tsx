@@ -3,7 +3,6 @@ import { useAuthStore } from '@/store/auth.store'
 import Logo from '@/components/landing/Logo'
 
 const navItems = [
-  { to: '/client/browse', label: 'Öğretmenler', icon: '👩‍🏫' },
   { to: '/client/bookings', label: 'Rezervasyonlarım', icon: '📅' },
 ]
 

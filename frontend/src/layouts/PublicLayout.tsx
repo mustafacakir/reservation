@@ -23,7 +23,6 @@ export default function PublicLayout() {
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-4">
-            <Link to="/providers" className="text-sm text-gray-600 hover:text-gray-900">Öğretmenler</Link>
             {isAuthenticated ? (
               <>
                 <button onClick={() => navigate(dashboardPath)} className="text-sm text-gray-700 hover:text-gray-900">
@@ -59,13 +58,6 @@ export default function PublicLayout() {
         {/* Mobile dropdown menu */}
         {menuOpen && (
           <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-2">
-            <Link
-              to="/providers"
-              className="block py-2 text-sm text-gray-700 font-medium"
-              onClick={() => setMenuOpen(false)}
-            >
-              Öğretmenler
-            </Link>
             {isAuthenticated ? (
               <>
                 <button
