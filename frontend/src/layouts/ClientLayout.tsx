@@ -13,15 +13,12 @@ export default function ClientLayout() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-60 bg-white border-r border-gray-100 flex flex-col shadow-sm">
-        {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-gray-100">
-          <Link to="/">
-            <Logo size="sm" />
-          </Link>
-        </div>
 
-        {/* Nav */}
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden lg:flex w-60 bg-white border-r border-gray-100 flex-col shadow-sm">
+        <div className="h-16 flex items-center px-5 border-b border-gray-100">
+          <Link to="/"><Logo size="sm" /></Link>
+        </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map((item) => (
             <NavLink
@@ -29,9 +26,7 @@ export default function ClientLayout() {
               to={item.to}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50'
+                  isActive ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
                 }`
               }
               style={({ isActive }) => isActive ? { background: 'var(--color-primary)' } : {}}
@@ -41,8 +36,6 @@ export default function ClientLayout() {
             </NavLink>
           ))}
         </nav>
-
-        {/* User */}
         <div className="p-4 border-t border-gray-100 flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
@@ -59,9 +52,47 @@ export default function ClientLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto px-6 pt-8 pb-6">
+      {/* ── Mobile top header ── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center justify-between px-4 shadow-sm">
+        <Link to="/"><Logo size="sm" /></Link>
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {initials}
+          </div>
+          <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700">
+            Çıkış
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main content ── */}
+      <main className="flex-1 overflow-auto px-4 pt-20 pb-24 lg:px-6 lg:pt-8 lg:pb-6">
         <Outlet />
       </main>
+
+      {/* ── Mobile bottom nav ── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 shadow-lg">
+        <div className="flex">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs font-medium transition-colors ${
+                  isActive ? 'text-[var(--color-primary)]' : 'text-gray-400'
+                }`
+              }
+            >
+              <span className="text-xl leading-none">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+
     </div>
   )
 }
