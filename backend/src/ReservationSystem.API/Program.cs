@@ -53,7 +53,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Seed database
+// Apply migrations and seed
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ReservationSystem.Infrastructure.Persistence.ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     await DatabaseSeeder.SeedAsync(app.Services);
