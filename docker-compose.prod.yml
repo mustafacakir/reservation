@@ -72,7 +72,7 @@ services:
         VITE_DEV_TENANT_SLUG: ${TENANT_SLUG:-math-masters}
     container_name: reservation-frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - api
     networks:
