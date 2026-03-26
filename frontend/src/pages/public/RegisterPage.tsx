@@ -43,16 +43,16 @@ export default function RegisterPage() {
     <div className="min-h-screen flex">
       {/* Left panel */}
       <div
-        className="hidden lg:flex lg:w-5/12 flex-col justify-between p-12"
+        className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
         style={{ background: 'var(--color-primary)' }}
       >
         <Logo size="md" white />
 
         <div>
-          <h2 className="text-3xl font-bold text-white leading-snug mb-3">
+          <h2 className="text-4xl font-bold text-white leading-snug mb-4">
             Başarıya giden yolda<br />doğru öğretmen seç.
           </h2>
-          <p className="text-white/70 text-sm mb-8">
+          <p className="text-white/70 text-base mb-10">
             Ücretsiz hesap oluştur, hemen ders planlamaya başla.
           </p>
           <div className="space-y-3">
