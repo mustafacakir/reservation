@@ -20,8 +20,8 @@ interface TenantState {
 function resolveSlugFromBrowser(): string | null {
   const hostname = window.location.hostname
   const parts = hostname.split('.')
-  // Works for: math-masters.localhost, math-masters.reservesaas.com
-  if (parts.length >= 2 && parts[0] !== 'www' && parts[0] !== 'app' && parts[0] !== 'localhost') {
+  // Works for: math-masters.reservesaas.com (subdomain setup, 3+ parts)
+  if (parts.length >= 3 && parts[0] !== 'www' && parts[0] !== 'app') {
     return parts[0]
   }
   // Dev fallback: use VITE_DEV_TENANT_SLUG when running on plain localhost

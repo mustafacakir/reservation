@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Search, X, Star, ChevronLeft, ChevronRight, GraduationCap } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import type { ProviderSummary } from '@/types/provider.types'
+import { useTenantStore } from '@/store/tenant.store'
 
 const QUICK_FILTERS = ['DGS', 'KPSS', 'YKS / AYT', 'İlkokul', 'Ortaokul', 'Lise']
 
@@ -97,6 +98,7 @@ function ProviderCard({ provider }: { provider: ProviderSummary }) {
 }
 
 export default function BrowseProvidersPage() {
+  const slug = useTenantStore((s) => s.slug)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -106,6 +108,7 @@ export default function BrowseProvidersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['providers', effectiveSearch, page],
     queryFn: () => providersApi.search({ specialization: effectiveSearch, page, pageSize: 12 }),
+    enabled: !!slug,
   })
 
   const handleSearch = (val: string) => {
