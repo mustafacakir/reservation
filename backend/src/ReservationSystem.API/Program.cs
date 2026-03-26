@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using ReservationSystem.Application;
 using ReservationSystem.Infrastructure;
 using ReservationSystem.Infrastructure.Persistence.Seeders;
