@@ -12,7 +12,7 @@ interface AppConfig {
 let configLoaded = false
 
 export function useAppConfig() {
-  const { slug, settings, setTenant } = useTenantStore()
+  const { settings, setTenant } = useTenantStore()
   const config = getSectorConfig(useTenantStore.getState().sector ?? undefined)
 
   useSectorTheme(config, settings?.primaryColor)

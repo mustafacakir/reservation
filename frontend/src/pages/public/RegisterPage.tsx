@@ -34,7 +34,7 @@ export default function RegisterPage() {
   const mutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: (data) => {
-      setAuth({ ...data, fullName: `${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() || '', role: 'Client' })
+      setAuth({ ...data, fullName: '', role: 'Client' })
       navigate('/client/browse', { replace: true })
     },
   })

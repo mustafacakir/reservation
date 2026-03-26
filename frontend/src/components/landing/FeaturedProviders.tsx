@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import SectionWrapper from './SectionWrapper'
 import ProviderCard, { type ProviderCardData } from './ProviderCard'
 import { providersApi } from '@/api/endpoints/providers.api'
@@ -7,7 +6,6 @@ import type { ProviderSummary } from '@/types/provider.types'
 import { useTenantStore } from '@/store/tenant.store'
 
 interface FeaturedProvidersProps {
-  providersLabel: string
   primaryColor?: string
 }
 
@@ -28,14 +26,13 @@ function SkeletonCard() {
   )
 }
 
-export default function FeaturedProviders({ providersLabel, primaryColor }: FeaturedProvidersProps) {
+export default function FeaturedProviders({ primaryColor }: FeaturedProvidersProps) {
   const { slug, settings } = useTenantStore()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['providers', 'featured', slug],
     queryFn: () => providersApi.search({ page: 1, pageSize: 6 }),
     staleTime: 1000 * 60 * 5,
-    // Wait until tenant slug is available so X-Tenant-Slug header is included
     enabled: !!slug,
   })
 

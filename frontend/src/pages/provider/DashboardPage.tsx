@@ -68,18 +68,6 @@ function ClientAvatar({ name }: { name: string }) {
   )
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  Completed: 'bg-blue-50 text-blue-700',
-  Pending: 'bg-amber-50 text-amber-700',
-  Confirmed: 'bg-emerald-50 text-emerald-700',
-  Cancelled: 'bg-red-50 text-red-600',
-}
-const STATUS_LABEL: Record<string, string> = {
-  Completed: 'Tamamlandı',
-  Pending: 'Beklemede',
-  Confirmed: 'Onaylandı',
-  Cancelled: 'İptal',
-}
 
 function BookingRow({ b }: { b: Booking }) {
   const { time } = formatDate(b.startUtc)
