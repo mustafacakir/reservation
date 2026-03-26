@@ -26,6 +26,51 @@ const HOW_IT_WORKS = [
   { icon: '📚', step: '4', title: 'Derse Katıl', desc: 'Online veya yüz yüze — sana uygun.' },
 ]
 
+const REVIEWS = [
+  {
+    name: 'Elif K.',
+    grade: 'TYT Öğrencisi',
+    avatar: 'EK',
+    rating: 5,
+    text: 'Sevda Öğretmen sayesinde TYT matematikte çok ciddi bir ilerleme kaydettim. Konuları çok net anlatıyor, sorularımı hiç bırakmıyor. Kesinlikle tavsiye ederim!',
+  },
+  {
+    name: 'Mehmet A.',
+    grade: 'Lise 11. Sınıf',
+    avatar: 'MA',
+    rating: 5,
+    text: 'Daha önce matematik dersinde sürekli zorlanıyordum, Sevda Öğretmen ile başladıktan sonra hem notlarım düzeldi hem de matematiği sevdim. Harika bir öğretmen!',
+  },
+  {
+    name: 'Zeynep T.',
+    grade: 'KPSS Adayı',
+    avatar: 'ZT',
+    rating: 5,
+    text: 'Online dersler çok verimli geçiyor. Konu anlatımı sade ve akılda kalıcı. KPSS matematik puanımı 15 puandan 28\'e çıkardım, çok teşekkürler!',
+  },
+  {
+    name: 'Burak Y.',
+    grade: 'Ortaokul 8. Sınıf',
+    avatar: 'BY',
+    rating: 5,
+    text: 'Oğlumun LGS hazırlığı için başladık. Çok sabırlı ve anlayışlı bir öğretmen. Her dersten sonra oğlum daha güvenli geliyor eve. Gerçekten memnunuz.',
+  },
+  {
+    name: 'Seda M.',
+    grade: 'AYT Öğrencisi',
+    avatar: 'SM',
+    rating: 5,
+    text: 'AYT matematik için başvurdum, beklentilerimin çok üzerinde bir ders aldım. Problem çözme teknikleri mükemmel, çok teşekkür ederim.',
+  },
+  {
+    name: 'Hasan Ç.',
+    grade: 'DGS Adayı',
+    avatar: 'HÇ',
+    rating: 5,
+    text: 'DGS\'ye hazırlanırken başladım. Ders programı tam ihtiyacıma yönelik hazırlandı. Sonuçtan çok memnunum, tavsiye ederim.',
+  },
+]
+
 const FAQS = [
   {
     q: 'Dersler online mı, yüz yüze mi?',
@@ -252,7 +297,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Subjects ── */}
-      <section className="py-16 px-4 bg-white">
+      <section id="dersler" className="py-16 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Hangi Konuda Yardım İstiyorsun?</h2>
@@ -271,6 +316,73 @@ export default function LandingPage() {
                   {s.label}
                 </span>
               </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Why us ── */}
+      <section className="py-16 px-4 bg-gray-50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Neden Sevda Öğretmen?</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              { Icon: Award, title: 'Uzman & Deneyimli', desc: 'Yılların deneyimiyle binlerce öğrenciye matematik öğretti.' },
+              { Icon: CalendarCheck, title: 'Esnek Randevu', desc: 'Sana uygun saat ve günde, istediğin yerden ders al.' },
+              { Icon: BookOpen, title: 'Kişisel Program', desc: 'Her öğrenciye özel müfredat, hedefe odaklı çalışma planı.' },
+            ].map(({ Icon, title, desc }) => (
+              <div key={title} className="flex gap-4 p-5 rounded-2xl border border-gray-100 bg-white">
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--color-primary-light, #ede9fe)' }}
+                >
+                  <Icon size={20} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-sm mb-1">{title}</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Reviews ── */}
+      <section id="yorumlar" className="py-16 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Öğrenci Yorumları</h2>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <div className="flex">
+                {[1,2,3,4,5].map(i => <Star key={i} size={15} className="text-amber-400 fill-amber-400" />)}
+              </div>
+              <span className="font-semibold text-gray-700">5.0</span>
+              <span>· {REVIEWS.length} değerlendirme</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {REVIEWS.map((r) => (
+              <div key={r.name} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+                <div className="flex">
+                  {[1,2,3,4,5].map(i => <Star key={i} size={13} className="text-amber-400 fill-amber-400" />)}
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed flex-1">"{r.text}"</p>
+                <div className="flex items-center gap-3 pt-2 border-t border-gray-50">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
+                    {r.avatar}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{r.name}</p>
+                    <p className="text-xs text-gray-400">{r.grade}</p>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -300,35 +412,6 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-sm font-bold text-gray-900 mb-1">{item.title}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Why us ── */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">Neden Sevda Öğretmen?</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {[
-              { Icon: Award, title: 'Uzman & Deneyimli', desc: 'Yılların deneyimiyle binlerce öğrenciye matematik öğretti.' },
-              { Icon: CalendarCheck, title: 'Esnek Randevu', desc: 'Sana uygun saat ve günde, istediğin yerden ders al.' },
-              { Icon: BookOpen, title: 'Kişisel Program', desc: 'Her öğrenciye özel müfredat, hedefe odaklı çalışma planı.' },
-            ].map(({ Icon, title, desc }) => (
-              <div key={title} className="flex gap-4 p-5 rounded-2xl border border-gray-100 bg-white">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'var(--color-primary-light, #ede9fe)' }}
-                >
-                  <Icon size={20} style={{ color: 'var(--color-primary)' }} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-sm mb-1">{title}</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
-                </div>
               </div>
             ))}
           </div>

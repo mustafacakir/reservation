@@ -22,10 +22,19 @@ export default function PublicLayout() {
           <Link to="/"><Logo size="md" /></Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-4">
+          <nav className="hidden sm:flex items-center gap-1">
+            {pathname === '/' && (
+              <>
+                <a href="#yorumlar" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Yorumlar</a>
+                <a href="#dersler" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Dersler</a>
+                <a href="#nasil-calisir" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Nasıl Çalışır?</a>
+                <a href="#sss" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">SSS</a>
+                <div className="w-px h-5 bg-gray-200 mx-2" />
+              </>
+            )}
             {isAuthenticated ? (
               <>
-                <button onClick={() => navigate(dashboardPath)} className="text-sm text-gray-700 hover:text-gray-900">
+                <button onClick={() => navigate(dashboardPath)} className="text-sm text-gray-700 hover:text-gray-900 px-3 py-1.5">
                   {fullName}
                 </button>
                 <button onClick={logout} className="text-sm bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200">
@@ -34,7 +43,7 @@ export default function PublicLayout() {
               </>
             ) : (
               <>
-                <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">Giriş Yap</Link>
+                <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5">Giriş Yap</Link>
                 <Link
                   to="/register"
                   className="text-sm text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
@@ -57,7 +66,16 @@ export default function PublicLayout() {
 
         {/* Mobile dropdown menu */}
         {menuOpen && (
-          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-2">
+          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+            {pathname === '/' && (
+              <>
+                <a href="#yorumlar" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Yorumlar</a>
+                <a href="#dersler" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Dersler</a>
+                <a href="#nasil-calisir" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Nasıl Çalışır?</a>
+                <a href="#sss" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">SSS</a>
+                <div className="border-t border-gray-100 my-1" />
+              </>
+            )}
             {isAuthenticated ? (
               <>
                 <button
