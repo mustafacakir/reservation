@@ -17,8 +17,10 @@ import KvkkPage from '@/pages/public/KvkkPage'
 // Client pages
 import BrowseProvidersPage from '@/pages/client/BrowseProvidersPage'
 import MyBookingsPage from '@/pages/client/MyBookingsPage'
+import ClientProfilePage from '@/pages/client/ClientProfilePage'
 import BookingFlowPage from '@/pages/client/BookingFlowPage'
 import PaymentResultPage from '@/pages/client/PaymentResultPage'
+import ClientAccountPage from '@/pages/client/ClientAccountPage'
 
 // Provider pages
 import ProviderDashboard from '@/pages/provider/DashboardPage'
@@ -29,6 +31,8 @@ import ManualBookingPage from '@/pages/provider/ManualBookingPage'
 
 // Admin pages
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
+import AdminUsersPage from '@/pages/admin/AdminUsersPage'
+import AdminBookingsPage from '@/pages/admin/AdminBookingsPage'
 
 export const router = createBrowserRouter([
   {
@@ -49,11 +53,13 @@ export const router = createBrowserRouter([
     path: '/client',
     element: <ProtectedRoute allowedRoles={['Client', 'ServiceProvider']}><ClientLayout /></ProtectedRoute>,
     children: [
-      { index: true, element: <Navigate to="browse" replace /> },
+      { index: true, element: <Navigate to="bookings" replace /> },
+      { path: 'profile', element: <ClientProfilePage /> },
       { path: 'browse', element: <BrowseProvidersPage /> },
       { path: 'bookings', element: <MyBookingsPage /> },
       { path: 'book/:providerId/:serviceId', element: <BookingFlowPage /> },
       { path: 'payment-result', element: <PaymentResultPage /> },
+      { path: 'account', element: <ClientAccountPage /> },
     ],
   },
   {
@@ -72,6 +78,8 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <AdminDashboardPage /> },
+      { path: 'users', element: <AdminUsersPage /> },
+      { path: 'bookings', element: <AdminBookingsPage /> },
     ],
   },
 ])

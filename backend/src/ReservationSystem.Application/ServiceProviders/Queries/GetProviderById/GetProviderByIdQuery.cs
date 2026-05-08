@@ -27,7 +27,9 @@ public record ServiceDto(
     string Description,
     int DurationMinutes,
     decimal Price,
-    string Currency);
+    string Currency,
+    string SessionType,
+    int? MaxParticipants);
 
 public class GetProviderByIdQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetProviderByIdQuery, ProviderDetailDto>
@@ -58,7 +60,8 @@ public class GetProviderByIdQueryHandler(IApplicationDbContext db)
                 .Where(s => s.IsActive)
                 .Select(s => new ServiceDto(
                     s.Id, s.Name, s.Description,
-                    s.DurationMinutes, s.Price, s.Currency))
+                    s.DurationMinutes, s.Price, s.Currency,
+                    s.SessionType.ToString(), s.MaxParticipants))
                 .ToList());
     }
 }

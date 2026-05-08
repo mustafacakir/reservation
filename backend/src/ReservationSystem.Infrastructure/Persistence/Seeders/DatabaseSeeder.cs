@@ -156,6 +156,17 @@ public static class DatabaseSeeder
         await db.Users.AddAsync(clientUser);
         await db.SaveChangesAsync();
 
+        // ── Admin user ───────────────────────────────────────────────────────
+        var adminUser = User.Create(
+            mathTenant.Id,
+            "admin@math-masters.com",
+            hasher.Hash("Admin1234!"),
+            "Platform", "Admin",
+            UserRole.Admin);
+
+        await db.Users.AddAsync(adminUser);
+        await db.SaveChangesAsync();
+
         // ── MindSpace Tenant (psikoloji — şimdilik sadece tenant) ──────────────
         var psychTenant = Tenant.Create("MindSpace Counseling", "mindspace", "psychology", PlanTier.Pro);
         psychTenant.UpdateSettings(new TenantSettings

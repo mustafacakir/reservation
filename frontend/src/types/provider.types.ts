@@ -23,4 +23,6 @@ export interface ServiceItem {
   durationMinutes: number
   price: number
   currency: string
+  sessionType: 'Individual' | 'Group'
+  maxParticipants: number | null
 }

@@ -20,6 +20,7 @@ public class Booking : BaseEntity, ITenantEntity
     public string? ProviderNotes { get; private set; }
     public decimal Price { get; private set; }
     public string Currency { get; private set; } = "USD";
+    public DateTimeOffset? ReminderSentAt { get; private set; }
 
     // Navigation
     public Service Service { get; private set; } = default!;
@@ -104,4 +105,10 @@ public class Booking : BaseEntity, ITenantEntity
     }
 
     public void AddProviderNotes(string notes) { ProviderNotes = notes; SetUpdatedAt(); }
+
+    public void MarkReminderSent()
+    {
+        ReminderSentAt = DateTimeOffset.UtcNow;
+        SetUpdatedAt();
+    }
 }

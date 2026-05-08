@@ -3,9 +3,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, CalendarCheck, Star, Shield } from 'lucide-react'
+import { Mail, Lock, ArrowRight, CalendarCheck, Star, Shield, AlertCircle } from 'lucide-react'
 import { authApi } from '@/api/endpoints/auth.api'
 import { useAuthStore } from '@/store/auth.store'
+import { useTenantStore } from '@/store/tenant.store'
+import { getSectorConfig } from '@/config/sectors'
 import Logo from '@/components/landing/Logo'
 
 const schema = z.object({
@@ -15,8 +17,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const FEATURES = [
-  { Icon: CalendarCheck, text: 'Kolayca ders rezervasyonu yapın' },
-  { Icon: Star, text: 'Uzman öğretmenlerle çalışın' },
+  { Icon: CalendarCheck, text: 'Kolayca rezervasyon yapın' },
+  { Icon: Star, text: 'Uzman profesyonellerle çalışın' },
   { Icon: Shield, text: 'Güvenli ödeme altyapısı' },
 ]
 
@@ -24,6 +26,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const { sector } = useTenantStore()
+  const sectorCfg = getSectorConfig(sector)
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -36,7 +40,7 @@ export default function LoginPage() {
       setAuth(data)
       const fallback = data.role === 'ServiceProvider' ? '/provider'
         : data.role === 'Admin' || data.role === 'SuperAdmin' ? '/admin'
-        : '/client/browse'
+        : '/client/bookings'
       navigate(from ?? fallback, { replace: true })
     },
   })
@@ -52,10 +56,10 @@ export default function LoginPage() {
 
         <div>
           <h2 className="text-4xl font-bold text-white leading-snug mb-4">
-            Matematik öğrenmek<br />hiç bu kadar kolay olmamıştı.
+            {sectorCfg.heroTitle}
           </h2>
           <p className="text-white/70 text-base mb-10">
-            Uzman öğretmenlerle birebir ders alın, ilerlemenizi takip edin.
+            {sectorCfg.heroSubtitle}
           </p>
           <div className="space-y-4">
             {FEATURES.map(({ Icon, text }) => (
@@ -69,7 +73,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-white/40 text-xs">© 2025 sevdailematematik</p>
+        <p className="text-white/40 text-xs">© 2025 · {sectorCfg.label}</p>
       </div>
 
       {/* Right panel */}
@@ -87,7 +91,7 @@ export default function LoginPage() {
 
           {mutation.error && (
             <div className="mb-5 flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-700">
-              <span className="mt-0.5 flex-shrink-0">⚠️</span>
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-red-400" />
               <span>E-posta veya şifre hatalı.</span>
             </div>
           )}

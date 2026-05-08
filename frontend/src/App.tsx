@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router-dom'
 import { router } from './router'
 import { useAppConfig } from './hooks/useAppConfig'
+import { ToastProvider } from './components/ui/Toast'
 
 function AppInit() {
   useAppConfig()
@@ -8,5 +9,9 @@ function AppInit() {
 }
 
 export default function App() {
-  return <AppInit />
+  return (
+    <ToastProvider>
+      <AppInit />
+    </ToastProvider>
+  )
 }

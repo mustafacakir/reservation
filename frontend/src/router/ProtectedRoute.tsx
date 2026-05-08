@@ -17,7 +17,7 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
     const redirectMap: Record<string, string> = {
-      Client: '/client/browse',
+      Client: '/client/bookings',
       ServiceProvider: '/provider',
       Admin: '/admin',
       SuperAdmin: '/admin',

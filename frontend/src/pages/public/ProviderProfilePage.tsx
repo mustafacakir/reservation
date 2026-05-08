@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery, useQueries } from '@tanstack/react-query'
-import { Clock, Star, ChevronLeft, CalendarDays, ArrowRight, UserCheck } from 'lucide-react'
+import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
+import { Clock, Star, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2 } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
+import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
+import { useToast } from '@/components/ui/Toast'
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -126,17 +128,37 @@ function SlotPicker({
           {slots.map((slot) => {
             const selected = slot.startUtc === selectedSlotStart
             const label = `${slot.startLocal} – ${slot.endLocal}`
+            const full = slot.isFull
+
             return (
               <button
                 key={slot.startUtc}
-                onClick={() => onSelect(slot.startUtc, label)}
+                onClick={() => !full && onSelect(slot.startUtc, label)}
+                disabled={full}
                 className={[
-                  'py-2.5 rounded-xl text-xs font-semibold border transition-all',
-                  selected ? 'text-white border-transparent shadow-sm' : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+                  'py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-0.5',
+                  full
+                    ? 'text-gray-400 border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
+                    : selected
+                      ? 'text-white border-transparent shadow-sm'
+                      : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
                 ].join(' ')}
-                style={selected ? { background: 'var(--color-primary)' } : {}}
+                style={selected && !full ? { background: 'var(--color-primary)' } : {}}
               >
-                {slot.startLocal}
+                <span>{slot.startLocal}</span>
+                {slot.isGroup && slot.maxParticipants && (
+                  <span
+                    className="text-[9px] font-bold px-1 rounded"
+                    style={full
+                      ? { background: '#fee2e2', color: '#dc2626' }
+                      : selected
+                        ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
+                        : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                    }
+                  >
+                    {full ? 'DOLU' : `${slot.currentParticipants}/${slot.maxParticipants}`}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -150,6 +172,34 @@ function SlotPicker({
   )
 }
 
+// ── PayTR modal ───────────────────────────────────────────────────────────────
+
+function PayTrModal({ token, onClose }: { token: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl overflow-hidden w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} style={{ color: 'var(--color-primary)' }} />
+            <span className="font-semibold text-gray-800">Güvenli Ödeme — PayTR</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <iframe
+          src={`https://www.paytr.com/odeme/guvenli/${token}`}
+          style={{ width: '100%', height: '580px', border: 'none', display: 'block' }}
+          title="Ödeme"
+        />
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ProviderProfilePage() {
@@ -158,10 +208,13 @@ export default function ProviderProfilePage() {
   const location = useLocation()
   const { isAuthenticated } = useAuthStore()
   const { slug } = useTenantStore()
+  const toast = useToast()
 
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
   const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null)
   const [selectedSlotLabel, setSelectedSlotLabel] = useState<string | null>(null)
+  const [clientNotes, setClientNotes] = useState('')
+  const [iframeToken, setIframeToken] = useState<string | null>(null)
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', id, slug],
@@ -171,14 +224,43 @@ export default function ProviderProfilePage() {
 
   const selectedService = provider?.services.find(s => s.id === selectedServiceId)
 
-  const handleBook = () => {
+  const payMutation = useMutation({
+    mutationFn: (data: { serviceId: string; providerId: string; startUtc: string; clientNotes?: string }) =>
+      apiClient.post<{ iframeToken?: string; gatewayType: string; pendingKey: string }>(
+        '/payments/initialize', data
+      ).then(r => r.data),
+    onSuccess: (data) => {
+      if (data.iframeToken) {
+        setIframeToken(data.iframeToken)
+      }
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail ?? ''
+      const errors: string[] = err?.response?.data?.errors ?? []
+      const firstError = errors[0] ?? ''
+      const msg = detail || firstError || 'Ödeme başlatılamadı. Lütfen tekrar deneyin.'
+
+      if (err?.response?.status === 400 && (msg.toLowerCase().includes('müsait') || msg.toLowerCase().includes('slot'))) {
+        setSelectedSlotStart(null)
+        setSelectedSlotLabel(null)
+        toast.error('Seçilen saat doldu. Lütfen başka bir saat seçin.')
+      } else {
+        toast.error(msg)
+      }
+    },
+  })
+
+  const handlePay = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } })
       return
     }
-    if (!selectedServiceId || !selectedSlotStart) return
-    navigate(`/client/book/${provider!.id}/${selectedServiceId}`, {
-      state: { slotStart: selectedSlotStart, slotLabel: selectedSlotLabel },
+    if (!selectedServiceId || !selectedSlotStart || !provider) return
+    payMutation.mutate({
+      serviceId: selectedServiceId,
+      providerId: provider.id,
+      startUtc: selectedSlotStart,
+      clientNotes: clientNotes.trim() || undefined,
     })
   }
 
@@ -205,11 +287,30 @@ export default function ProviderProfilePage() {
     )
   }
 
+  const bookingPanelProps = {
+    provider,
+    selectedServiceId,
+    setSelectedServiceId,
+    selectedSlotStart,
+    selectedSlotLabel,
+    setSelectedSlotStart,
+    setSelectedSlotLabel,
+    selectedService,
+    isAuthenticated,
+    clientNotes,
+    setClientNotes,
+    isPayLoading: payMutation.isPending,
+    handlePay,
+  }
+
   return (
     <div>
+      {iframeToken && (
+        <PayTrModal token={iframeToken} onClose={() => setIframeToken(null)} />
+      )}
+
       {/* ── Hero Banner ── */}
       <div className="relative h-44 sm:h-52" style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #3730a3) 100%)' }}>
-        {/* Back button */}
         <button
           onClick={() => navigate(-1)}
           className="absolute top-5 left-4 sm:left-6 flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
@@ -217,8 +318,6 @@ export default function ProviderProfilePage() {
           <ChevronLeft size={18} />
           Geri
         </button>
-
-        {/* Decorative circles */}
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 -translate-y-1/3 translate-x-1/4" style={{ background: 'white' }} />
         <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full opacity-10 translate-y-1/2" style={{ background: 'white' }} />
       </div>
@@ -281,20 +380,9 @@ export default function ProviderProfilePage() {
               </div>
             )}
 
-            {/* Mobile booking CTA */}
+            {/* Mobile booking panel */}
             <div className="lg:hidden mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <BookingPanel
-                provider={provider}
-                selectedServiceId={selectedServiceId}
-                setSelectedServiceId={setSelectedServiceId}
-                selectedSlotStart={selectedSlotStart}
-                selectedSlotLabel={selectedSlotLabel}
-                setSelectedSlotStart={setSelectedSlotStart}
-                setSelectedSlotLabel={setSelectedSlotLabel}
-                selectedService={selectedService}
-                isAuthenticated={isAuthenticated}
-                handleBook={handleBook}
-              />
+              <BookingPanel {...bookingPanelProps} />
             </div>
           </div>
 
@@ -307,18 +395,7 @@ export default function ProviderProfilePage() {
                   <span className="text-sm text-gray-400">/ saat başlangıç</span>
                 </div>
               )}
-              <BookingPanel
-                provider={provider}
-                selectedServiceId={selectedServiceId}
-                setSelectedServiceId={setSelectedServiceId}
-                selectedSlotStart={selectedSlotStart}
-                selectedSlotLabel={selectedSlotLabel}
-                setSelectedSlotStart={setSelectedSlotStart}
-                setSelectedSlotLabel={setSelectedSlotLabel}
-                selectedService={selectedService}
-                isAuthenticated={isAuthenticated}
-                handleBook={handleBook}
-              />
+              <BookingPanel {...bookingPanelProps} />
             </div>
           </div>
 
@@ -333,7 +410,7 @@ export default function ProviderProfilePage() {
 function BookingPanel({
   provider, selectedServiceId, setSelectedServiceId,
   selectedSlotStart, selectedSlotLabel, setSelectedSlotStart, setSelectedSlotLabel,
-  selectedService, isAuthenticated, handleBook,
+  selectedService, isAuthenticated, clientNotes, setClientNotes, isPayLoading, handlePay,
 }: {
   provider: any
   selectedServiceId: string | null
@@ -344,8 +421,13 @@ function BookingPanel({
   setSelectedSlotLabel: (v: string | null) => void
   selectedService: any
   isAuthenticated: boolean
-  handleBook: () => void
+  clientNotes: string
+  setClientNotes: (v: string) => void
+  isPayLoading: boolean
+  handlePay: () => void
 }) {
+  const slotReady = !!selectedServiceId && !!selectedSlotStart
+
   return (
     <div className="space-y-5">
       {/* Service selection */}
@@ -369,11 +451,28 @@ function BookingPanel({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={active ? { color: 'var(--color-primary)' } : { color: '#111827' }}>
-                      {service.name}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold" style={active ? { color: 'var(--color-primary)' } : { color: '#111827' }}>
+                        {service.name}
+                      </p>
+                      {service.sessionType === 'Group' && (
+                        <span
+                          className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
+                          style={active
+                            ? { background: 'var(--color-primary)', color: '#fff' }
+                            : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                          }
+                        >
+                          <Users size={9} />
+                          GRUP
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                       <Clock size={11} /> {service.durationMinutes} dk
+                      {service.sessionType === 'Group' && service.maxParticipants && (
+                        <> · Maks. {service.maxParticipants} kişi</>
+                      )}
                     </p>
                   </div>
                   <span className="text-sm font-bold text-gray-900 flex-shrink-0">
@@ -403,28 +502,49 @@ function BookingPanel({
         </div>
       )}
 
-      {/* Book button */}
+      {/* Notes + pay button */}
       <div className={selectedService ? '' : 'pt-2'}>
         {selectedSlotLabel && (
           <div className="mb-3 px-3 py-2.5 rounded-xl text-xs text-center font-medium bg-gray-50 border border-gray-100 text-gray-700">
             {selectedSlotLabel}
           </div>
         )}
+
+        {slotReady && (
+          <textarea
+            value={clientNotes}
+            onChange={e => setClientNotes(e.target.value)}
+            placeholder="Öğretmene not ekle (isteğe bağlı)"
+            rows={2}
+            className="w-full mb-3 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:border-transparent placeholder-gray-400"
+            style={{ '--tw-ring-color': 'var(--color-primary)' } as any}
+          />
+        )}
+
         <button
-          disabled={!selectedServiceId || !selectedSlotStart}
-          onClick={handleBook}
+          disabled={!selectedServiceId || !selectedSlotStart || isPayLoading}
+          onClick={handlePay}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-opacity disabled:opacity-40 hover:opacity-90 text-sm"
           style={{ background: 'var(--color-primary)' }}
         >
-          {!isAuthenticated
-            ? <><UserCheck size={16} /> Giriş yaparak rezervasyon yap</>
-            : !selectedServiceId
-            ? 'Ders seçin'
-            : !selectedSlotStart
-            ? 'Saat seçin'
-            : <><ArrowRight size={16} /> Rezervasyon Yap</>
-          }
+          {isPayLoading ? (
+            <><Loader2 size={16} className="animate-spin" /> İşleniyor...</>
+          ) : !isAuthenticated ? (
+            <><UserCheck size={16} /> Giriş yaparak rezervasyon yap</>
+          ) : !selectedServiceId ? (
+            'Ders seçin'
+          ) : !selectedSlotStart ? (
+            'Saat seçin'
+          ) : (
+            <><ArrowRight size={16} /> Ödemeye Geç</>
+          )}
         </button>
+
+        {slotReady && (
+          <p className="text-center text-xs text-gray-400 mt-2 flex items-center justify-center gap-1">
+            <ShieldCheck size={11} /> Güvenli ödeme — PayTR
+          </p>
+        )}
       </div>
     </div>
   )

@@ -1,53 +1,75 @@
 import { useState } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { useTenantStore } from '@/store/tenant.store'
+import { getSectorConfig } from '@/config/sectors'
 import Logo from '@/components/landing/Logo'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 
 export default function PublicLayout() {
   const { isAuthenticated, role, logout, fullName } = useAuthStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { sector } = useTenantStore()
+  const sectorCfg = getSectorConfig(sector)
 
   const isFullBleed = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')
 
   const dashboardPath = role === 'ServiceProvider' ? '/provider'
-    : role === 'Admin' || role === 'SuperAdmin' ? '/admin' : '/client/browse'
+    : role === 'Admin' || role === 'SuperAdmin' ? '/admin' : '/client/profile'
+
+  const initials = fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/"><Logo size="md" /></Link>
+      <header className="bg-white/95 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <Link to="/" className="flex-shrink-0"><Logo size="md" /></Link>
 
           {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-1">
-            {pathname === '/' && (
-              <>
-                <a href="#yorumlar" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Yorumlar</a>
-                <a href="#dersler" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Dersler</a>
-                <a href="#nasil-calisir" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Nasıl Çalışır?</a>
-                <a href="#sss" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">SSS</a>
-                <div className="w-px h-5 bg-gray-200 mx-2" />
-              </>
-            )}
+          <nav className="hidden sm:flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                <button onClick={() => navigate(dashboardPath)} className="text-sm text-gray-700 hover:text-gray-900 px-3 py-1.5">
-                  {fullName}
-                </button>
-                <button onClick={logout} className="text-sm bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200">
-                  Çıkış
-                </button>
+                {role === 'Client' ? (
+                  <Link
+                    to="/client/profile"
+                    className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Profilim
+                  </Link>
+                ) : null}
+                <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
+                  <button
+                    onClick={() => navigate(dashboardPath)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                      style={{ background: 'var(--color-primary)' }}
+                    >
+                      {initials}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">{fullName}</span>
+                    <ChevronDown size={13} className="text-gray-400" />
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Çıkış
+                  </button>
+                </div>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5">Giriş Yap</Link>
+                <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                  Giriş Yap
+                </Link>
                 <Link
                   to="/register"
-                  className="text-sm text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-                  style={{ background: 'var(--color-primary, #4f46e5)' }}
+                  className="text-sm font-semibold text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+                  style={{ background: 'var(--color-primary)' }}
                 >
                   Ücretsiz Başla
                 </Link>
@@ -55,56 +77,60 @@ export default function PublicLayout() {
             )}
           </nav>
 
-          {/* Mobile nav toggle */}
+          {/* Mobile toggle */}
           <button
-            className="sm:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+            className="sm:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
             onClick={() => setMenuOpen((v) => !v)}
           >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
-        {/* Mobile dropdown menu */}
+        {/* Mobile menu */}
         {menuOpen && (
-          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
-            {pathname === '/' && (
-              <>
-                <a href="#yorumlar" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Yorumlar</a>
-                <a href="#dersler" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Dersler</a>
-                <a href="#nasil-calisir" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Nasıl Çalışır?</a>
-                <a href="#sss" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">SSS</a>
-                <div className="border-t border-gray-100 my-1" />
-              </>
-            )}
+          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1 shadow-lg">
             {isAuthenticated ? (
               <>
+                <div className="flex items-center gap-3 px-2 py-2 mb-2">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
+                    {initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{fullName}</p>
+                    <p className="text-xs text-gray-400 capitalize">{role === 'ServiceProvider' ? sectorCfg.providerLabel : sectorCfg.clientLabel}</p>
+                  </div>
+                </div>
+                {role === 'Client' && (
+                  <Link to="/client/profile" onClick={() => setMenuOpen(false)} className="block px-2 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-gray-50">Profilim</Link>
+                )}
                 <button
                   onClick={() => { navigate(dashboardPath); setMenuOpen(false) }}
-                  className="block w-full text-left py-2 text-sm text-gray-700 font-medium"
+                  className="block w-full text-left px-2 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                  {fullName} — Panel
+                  Panel
                 </button>
-                <button
-                  onClick={() => { logout(); setMenuOpen(false) }}
-                  className="block w-full text-left py-2 text-sm text-red-500 font-medium"
-                >
-                  Çıkış Yap
-                </button>
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  <button
+                    onClick={() => { logout(); setMenuOpen(false) }}
+                    className="block w-full text-left px-2 py-2.5 text-sm text-red-500 rounded-lg hover:bg-red-50"
+                  >
+                    Çıkış Yap
+                  </button>
+                </div>
               </>
             ) : (
               <>
-                <Link
-                  to="/login"
-                  className="block py-2 text-sm text-gray-700 font-medium"
-                  onClick={() => setMenuOpen(false)}
-                >
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block px-2 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">
                   Giriş Yap
                 </Link>
                 <Link
                   to="/register"
-                  className="block py-2 text-sm font-semibold text-white text-center rounded-xl"
-                  style={{ background: 'var(--color-primary, #4f46e5)' }}
                   onClick={() => setMenuOpen(false)}
+                  className="block px-2 py-2.5 text-sm font-semibold text-white text-center rounded-xl"
+                  style={{ background: 'var(--color-primary)' }}
                 >
                   Ücretsiz Başla
                 </Link>
@@ -118,7 +144,7 @@ export default function PublicLayout() {
         {isFullBleed ? (
           <Outlet />
         ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Outlet />
           </div>
         )}

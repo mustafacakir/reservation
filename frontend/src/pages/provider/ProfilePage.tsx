@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Check } from 'lucide-react'
+import { X } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -21,6 +22,7 @@ interface ProfileForm {
 export default function ProfilePage() {
   const qc = useQueryClient()
   const authState = useAuthStore()
+  const toast = useToast()
   const [newSpec, setNewSpec] = useState('')
   const [uploading, setUploading] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -35,7 +37,7 @@ export default function ProfilePage() {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: 'Kendinizi öğrencilere tanıtın… 🎓' }),
+      Placeholder.configure({ placeholder: 'Kendinizi ve uzmanlık alanlarınızı tanıtın…' }),
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -81,7 +83,6 @@ export default function ProfilePage() {
     onSuccess: () => {
       formInitialized.current = false
       qc.invalidateQueries({ queryKey: ['myProfile'] })
-      // update auth store fullName
       authState.setAuth({
         userId: authState.userId!,
         fullName: `${form.firstName} ${form.lastName}`.trim(),
@@ -89,6 +90,10 @@ export default function ProfilePage() {
         accessToken: authState.accessToken!,
         refreshToken: authState.refreshToken!,
       })
+      toast.success('Profil güncellendi', 'Değişiklikleriniz başarıyla kaydedildi.')
+    },
+    onError: () => {
+      toast.error('Kayıt başarısız', 'Lütfen tekrar deneyin.')
     },
   })
 
@@ -157,7 +162,7 @@ export default function ProfilePage() {
     <div className="max-w-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Profilim</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Öğrencilerin gördüğü bilgileri düzenleyin.</p>
+        <p className="text-sm text-gray-500 mt-0.5">Profilinizde görünen bilgileri düzenleyin.</p>
       </div>
 
       <div className="space-y-4">
@@ -314,7 +319,7 @@ export default function ProfilePage() {
                 style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
               >
                 {s}
-                <button onClick={() => removeSpec(s)} className="opacity-60 hover:opacity-100 text-xs font-bold">✕</button>
+                <button onClick={() => removeSpec(s)} className="opacity-60 hover:opacity-100"><X size={11} /></button>
               </span>
             ))}
           </div>
@@ -347,12 +352,6 @@ export default function ProfilePage() {
           >
             {saveMutation.isPending ? 'Kaydediliyor…' : 'Değişiklikleri Kaydet'}
           </button>
-          {saveMutation.isSuccess && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-              <Check size={15} /> Kaydedildi
-            </span>
-          )}
-          {saveMutation.isError && <span className="text-sm text-red-500">Hata oluştu, tekrar deneyin.</span>}
         </div>
       </div>
     </div>

@@ -3,6 +3,10 @@ export interface AvailableSlot {
   endUtc: string
   startLocal: string
   endLocal: string
+  isGroup: boolean
+  maxParticipants: number | null
+  currentParticipants: number
+  isFull: boolean
 }
 
 export interface WeeklySlot {

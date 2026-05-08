@@ -142,6 +142,9 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<DateTimeOffset?>("ReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("ServiceId")
                         .HasColumnType("uuid");
 
@@ -240,6 +243,9 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
                     b.Property<int>("MaxAdvanceBookingDays")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("MaxParticipants")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -251,6 +257,9 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("SessionType")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -557,16 +566,28 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
                             b1.Property<int>("CancellationWindowHours")
                                 .HasColumnType("integer");
 
+                            b1.Property<string>("City")
+                                .HasColumnType("text");
+
                             b1.Property<string>("Currency")
                                 .IsRequired()
                                 .HasMaxLength(3)
                                 .HasColumnType("character varying(3)");
+
+                            b1.Property<string>("CustomTagline")
+                                .HasColumnType("text");
 
                             b1.Property<int>("DefaultSessionDurationMinutes")
                                 .HasColumnType("integer");
 
                             b1.Property<string>("LogoUrl")
                                 .HasColumnType("text");
+
+                            b1.Property<bool>("OffersInPerson")
+                                .HasColumnType("boolean");
+
+                            b1.Property<bool>("OffersOnline")
+                                .HasColumnType("boolean");
 
                             b1.Property<string>("PrimaryColor")
                                 .HasColumnType("text");

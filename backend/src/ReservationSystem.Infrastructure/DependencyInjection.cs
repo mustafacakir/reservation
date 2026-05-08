@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.Payments;
+using ReservationSystem.Infrastructure.BackgroundServices;
+using ReservationSystem.Infrastructure.Email;
 using ReservationSystem.Infrastructure.Identity;
 using ReservationSystem.Infrastructure.Payment;
 using ReservationSystem.Infrastructure.Persistence;
@@ -40,10 +42,19 @@ public static class DependencyInjection
         services.AddStackExchangeRedisCache(options =>
             options.Configuration = configuration["Redis:ConnectionString"]);
 
-        // Iyzico payment
+        // Payment gateways
         services.Configure<IyzicoOptions>(configuration.GetSection("Iyzico"));
         services.AddScoped<IIyzicoPaymentService, IyzicoPaymentService>();
+        services.Configure<PayTrOptions>(configuration.GetSection("PayTr"));
+        services.AddScoped<PayTrPaymentService>();
+        services.AddScoped<IPaymentGateway, PayTrPaymentService>();
         services.AddScoped<IPendingPaymentStore, PendingPaymentStore>();
+        services.AddHttpClient("PayTr");
+
+        // Email
+        services.Configure<EmailSettings>(configuration.GetSection("Email"));
+        services.AddScoped<IEmailService, BrevoEmailService>();
+        services.AddHostedService<BookingReminderBackgroundService>();
 
         // Identity services
         services.AddScoped<IJwtTokenService, JwtTokenService>();

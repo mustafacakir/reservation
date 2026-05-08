@@ -42,6 +42,10 @@ export function useAppConfig() {
           primaryColor: tenant.settings.primaryColor,
           logoUrl: tenant.settings.logoUrl,
           cancellationWindowHours: tenant.settings.cancellationWindowHours,
+          customTagline: tenant.settings.customTagline,
+          city: tenant.settings.city,
+          offersInPerson: tenant.settings.offersInPerson,
+          offersOnline: tenant.settings.offersOnline,
         })
       })
       .catch((err) => {

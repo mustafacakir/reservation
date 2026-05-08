@@ -24,6 +24,7 @@ public class ServiceProvidersController(IMediator mediator) : ControllerBase
 
     [HttpPut("me")]
     [Authorize]
+    
     public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileCommand command, CancellationToken ct)
     {
         await mediator.Send(command, ct);

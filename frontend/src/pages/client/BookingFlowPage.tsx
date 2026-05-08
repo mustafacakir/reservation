@@ -1,18 +1,234 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
+import { useToast } from '@/components/ui/Toast'
+import type { AvailableSlot } from '@/types/availability.types'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getNext14Days(): Date[] {
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i); return d
+  })
+}
+function toParam(d: Date) { return d.toISOString().split('T')[0] }
+
+const WD  = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+const MON = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+
+function fmtDate(utc: string) {
+  const d = new Date(utc)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${WD[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]} · ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// ── Slot picker ───────────────────────────────────────────────────────────────
+
+function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart, onSelect }: {
+  providerId: string; serviceId: string; durationMinutes: number
+  selectedSlotStart: string | null; onSelect: (start: string, label: string) => void
+}) {
+  const days = getNext14Days()
+  const [activeDay, setActiveDay] = useState(days[0])
+
+  const dayQueries = useQueries({
+    queries: days.map((d) => ({
+      queryKey: ['slots', providerId, serviceId, toParam(d)],
+      queryFn: () => providersApi.getAvailableSlots(providerId, serviceId, toParam(d)),
+      staleTime: 60_000,
+    })),
+  })
+
+  const activeDateStr = toParam(activeDay)
+  const activeIdx = days.findIndex((d) => toParam(d) === activeDateStr)
+  const slots: AvailableSlot[] = dayQueries[activeIdx]?.data ?? []
+  const loading = dayQueries[activeIdx]?.isLoading ?? true
+
+  const avail: Record<string, boolean | undefined> = {}
+  days.forEach((d, i) => {
+    const q = dayQueries[i]
+    if (!q.isLoading) avail[toParam(d)] = (q.data?.length ?? 0) > 0
+  })
+
+  return (
+    <div>
+      {/* Date strip */}
+      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+        {days.map((d) => {
+          const ds = toParam(d)
+          const active = ds === activeDateStr
+          const hasSlots = avail[ds]
+          const loadingDay = avail[ds] === undefined
+          const disabled = !loadingDay && hasSlots === false
+          return (
+            <button
+              key={ds}
+              disabled={disabled}
+              onClick={() => { setActiveDay(d); onSelect('', '') }}
+              className={['flex-shrink-0 flex flex-col items-center w-12 py-2 rounded-xl text-xs font-medium transition-all',
+                active ? 'text-white shadow-sm' : disabled
+                  ? 'text-gray-300 bg-gray-50 cursor-not-allowed opacity-40'
+                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100'].join(' ')}
+              style={active ? { background: 'var(--color-primary)' } : {}}
+            >
+              <span className="text-[9px] uppercase tracking-wider opacity-75">{WD[d.getDay()]}</span>
+              <span className="text-base font-bold leading-tight mt-0.5">{d.getDate()}</span>
+              <span className="text-[9px] opacity-60">{MON[d.getMonth()]}</span>
+              {!disabled && !active && !loadingDay && (
+                <span className="w-1 h-1 rounded-full mt-1" style={{ background: 'var(--color-primary)' }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Slots */}
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />)}
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="py-10 text-center">
+            <CalendarDays size={28} className="text-gray-200 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Bu gün müsait saat yok</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {slots.map((slot) => {
+              const selected = slot.startUtc === selectedSlotStart
+              const full = slot.isFull
+              return (
+                <button
+                  key={slot.startUtc}
+                  disabled={full}
+                  onClick={() => !full && onSelect(slot.startUtc, `${slot.startLocal} – ${slot.endLocal}`)}
+                  className={['py-3 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1',
+                    full ? 'text-gray-300 border-gray-100 bg-gray-50 cursor-not-allowed'
+                      : selected ? 'text-white border-transparent shadow-sm'
+                      : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300'].join(' ')}
+                  style={selected && !full ? { background: 'var(--color-primary)' } : {}}
+                >
+                  <span className="text-sm">{slot.startLocal}</span>
+                  {slot.isGroup && slot.maxParticipants && (
+                    <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
+                      style={full ? { background: '#fee2e2', color: '#dc2626' }
+                        : selected ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
+                        : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                      {full ? 'DOLU' : <><Users size={8} /> {slot.currentParticipants}/{slot.maxParticipants}</>}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+          <Clock size={11} /> Her ders {durationMinutes} dakika
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Step badge ────────────────────────────────────────────────────────────────
+
+function StepDot({ n, done, active }: { n: number; done: boolean; active: boolean }) {
+  return (
+    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${active || done ? 'text-white' : 'text-gray-300'}`}
+      style={active || done ? { background: 'var(--color-primary)' } : { background: '#f3f4f6' }}>
+      {done ? <CheckCircle size={13} /> : n}
+    </div>
+  )
+}
+
+// ── PayTR iframe view ─────────────────────────────────────────────────────────
+
+function PayTrCheckout({ iframeToken, onBack }: { iframeToken: string; onBack: () => void }) {
+  return (
+    <div className="max-w-lg mx-auto py-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
+          <ChevronLeft size={20} />
+        </button>
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Güvenli Ödeme</h2>
+          <p className="text-xs text-gray-400 flex items-center gap-1">
+            <ShieldCheck size={11} /> PayTR ile şifreli ödeme
+          </p>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <iframe
+          src={`https://www.paytr.com/odeme/guvenli/${iframeToken}`}
+          id="paytriframe"
+          frameBorder="0"
+          scrolling="no"
+          style={{ width: '100%', height: '600px' }}
+          title="PayTR Ödeme"
+          allow="payment"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── iyzico form view (legacy) ─────────────────────────────────────────────────
+
+function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(formContent, 'text/html')
+    const scripts = Array.from(doc.querySelectorAll('script'))
+    const run = (i: number) => {
+      if (i >= scripts.length) return
+      const el = document.createElement('script')
+      if (scripts[i].src) { el.src = scripts[i].src; el.onload = () => run(i + 1); el.onerror = () => run(i + 1) }
+      else { el.textContent = scripts[i].textContent; setTimeout(() => run(i + 1), 0) }
+      document.body.appendChild(el)
+    }
+    run(0)
+  }, [formContent])
+
+  return (
+    <div className="max-w-lg mx-auto py-12 text-center space-y-5">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'var(--color-primary-light)' }}>
+        <CreditCard size={26} style={{ color: 'var(--color-primary)' }} />
+      </div>
+      <h2 className="text-xl font-bold text-gray-900">Ödeme Sayfasına Yönlendiriliyorsunuz</h2>
+      <p className="text-sm text-gray-500">iyzico güvenli ödeme formu yükleniyor…</p>
+      <div ref={containerRef} id="iyzipay-checkout-form" className="responsive" />
+      <button onClick={onBack} className="text-sm text-gray-400 hover:text-gray-600 underline">
+        Geri dön
+      </button>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+type PaymentState =
+  | { type: 'none' }
+  | { type: 'paytr'; iframeToken: string }
+  | { type: 'iyzico'; formContent: string }
 
 export default function BookingFlowPage() {
   const { providerId, serviceId } = useParams<{ providerId: string; serviceId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const qc = useQueryClient()
+  const toast = useToast()
   const [clientNotes, setClientNotes] = useState('')
-  const [checkoutFormContent, setCheckoutFormContent] = useState<string | null>(null)
-  const paymentContainerRef = useRef<HTMLDivElement>(null)
+  const [paymentState, setPaymentState] = useState<PaymentState>({ type: 'none' })
 
-  const { slotStart, slotLabel } = (location.state as { slotStart?: string; slotLabel?: string }) ?? {}
+  const pre = (location.state as { slotStart?: string; slotLabel?: string }) ?? {}
+  const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(pre.slotStart ?? null)
+  const [selectedSlotLabel, setSelectedSlotLabel] = useState<string | null>(pre.slotLabel ?? null)
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
@@ -24,170 +240,176 @@ export default function BookingFlowPage() {
 
   const initPaymentMutation = useMutation({
     mutationFn: () =>
-      apiClient.post('/payments/initialize', {
-        serviceId,
-        providerId,
-        startUtc: slotStart,
-        clientNotes: clientNotes || null,
-      }).then((r) => r.data as { checkoutFormContent: string; token: string }),
+      apiClient
+        .post('/payments/initialize', { serviceId, providerId, startUtc: selectedSlotStart, clientNotes: clientNotes || null })
+        .then((r) => r.data as { gatewayType: string; iframeToken?: string; formContent?: string }),
     onSuccess: (data) => {
-      setCheckoutFormContent(data.checkoutFormContent)
+      if (data.gatewayType === 'PayTr' && data.iframeToken) {
+        setPaymentState({ type: 'paytr', iframeToken: data.iframeToken })
+      } else if (data.formContent) {
+        setPaymentState({ type: 'iyzico', formContent: data.formContent })
+      }
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const isSlotTaken = msg?.toLowerCase().includes('not available') || msg?.toLowerCase().includes('slot')
+      if (isSlotTaken) {
+        setSelectedSlotStart(null)
+        setSelectedSlotLabel(null)
+        qc.invalidateQueries({ queryKey: ['slots', providerId] })
+        toast.error('Saat müsait değil', 'Bu saat dolu, lütfen başka bir saat seçin.')
+      } else {
+        toast.error('Ödeme başlatılamadı', msg ?? 'Lütfen tekrar deneyin.')
+      }
     },
   })
 
-  // Inject iyzico scripts when checkoutFormContent is set
-  useEffect(() => {
-    if (!checkoutFormContent) return
+  if (paymentState.type === 'paytr') {
+    return <PayTrCheckout iframeToken={paymentState.iframeToken} onBack={() => setPaymentState({ type: 'none' })} />
+  }
 
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(checkoutFormContent, 'text/html')
-    const scripts = Array.from(doc.querySelectorAll('script'))
+  if (paymentState.type === 'iyzico') {
+    return <IyzicoCheckout formContent={paymentState.formContent} onBack={() => setPaymentState({ type: 'none' })} />
+  }
 
-    // Execute scripts sequentially (inline first, then external src)
-    const executeNext = (index: number) => {
-      if (index >= scripts.length) return
-      const old = scripts[index]
-      const el = document.createElement('script')
-      if (old.src) {
-        el.src = old.src
-        el.onload = () => executeNext(index + 1)
-        el.onerror = () => executeNext(index + 1)
-      } else {
-        el.textContent = old.textContent
-        setTimeout(() => executeNext(index + 1), 0)
-      }
-      document.body.appendChild(el)
-    }
-
-    executeNext(0)
-  }, [checkoutFormContent])
-
-  if (!slotStart || !slotLabel) {
+  if (isLoading || !provider) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-16 text-center">
-        <p className="text-gray-500 mb-4">Saat seçimi bulunamadı.</p>
-        <button
-          onClick={() => navigate(`/providers/${providerId}`)}
-          className="text-sm font-medium hover:underline"
-          style={{ color: 'var(--color-primary)' }}
-        >
-          Öğretmen sayfasına dön
-        </button>
+      <div className="max-w-2xl mx-auto space-y-4 animate-pulse">
+        <div className="h-8 bg-gray-100 rounded-xl w-1/3" />
+        <div className="h-16 bg-white rounded-2xl border border-gray-100" />
+        <div className="h-72 bg-white rounded-2xl border border-gray-100" />
       </div>
     )
   }
 
-  // Show iyzico payment form (full screen takeover)
-  if (checkoutFormContent) {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-8 text-center space-y-4">
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto"
-          style={{ background: 'var(--color-primary-light)' }}
-        >
-          💳
-        </div>
-        <h2 className="text-xl font-bold text-gray-900">Ödeme Sayfasına Yönlendiriliyorsunuz</h2>
-        <p className="text-sm text-gray-500">iyzico güvenli ödeme formu yükleniyor…</p>
-        <div ref={paymentContainerRef} id="iyzipay-checkout-form" className="responsive" />
-        <button
-          onClick={() => setCheckoutFormContent(null)}
-          className="text-sm text-gray-400 hover:text-gray-600 underline mt-4 block mx-auto"
-        >
-          Geri dön
-        </button>
-      </div>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-12 space-y-4 animate-pulse">
-        <div className="h-8 bg-gray-100 rounded-xl w-1/2" />
-        <div className="h-40 bg-gray-100 rounded-2xl" />
-        <div className="h-32 bg-gray-100 rounded-2xl" />
-      </div>
-    )
-  }
+  const step1Done = !!selectedSlotStart
+  const initials = provider.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-8 space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Rezervasyonu Onayla</h1>
+    <div className="max-w-2xl mx-auto space-y-4">
 
-      {/* Summary card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-        <div className="flex items-center gap-4">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--color-primary-light)' }}
-          >
-            <span className="text-2xl">📅</span>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500 flex-shrink-0">
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex items-center gap-3 min-w-0">
+          {provider.avatarUrl
+            ? <img src={provider.avatarUrl} alt={provider.fullName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+            : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>{initials}</div>
+          }
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-gray-900 leading-tight truncate">Rezervasyon</h1>
+            <p className="text-sm text-gray-400 truncate">{provider.fullName}</p>
           </div>
-          <div>
-            <p className="font-semibold text-gray-900">{slotLabel}</p>
-            <p className="text-sm text-gray-500">{provider?.fullName}</p>
-          </div>
-        </div>
-
-        {service && (
-          <div className="border-t border-gray-100 pt-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium text-gray-900">{service.name}</p>
-              <p className="text-sm text-gray-500 mt-0.5">{service.durationMinutes} dakika</p>
-            </div>
-            <p className="font-bold text-gray-900 flex-shrink-0">₺{service.price.toLocaleString('tr-TR')}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Notes */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Öğretmene not (isteğe bağlı)
-        </label>
-        <textarea
-          value={clientNotes}
-          onChange={(e) => setClientNotes(e.target.value)}
-          placeholder="Önceki bilginizi, odaklanmak istediğiniz konuları yazabilirsiniz…"
-          className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
-          style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
-          rows={3}
-        />
-      </div>
-
-      {/* Payment info */}
-      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-        <span className="text-2xl">🔒</span>
-        <div>
-          <p className="text-sm font-medium text-gray-700">Güvenli Ödeme — iyzico</p>
-          <p className="text-xs text-gray-400">Kart bilgileriniz iyzico tarafından şifreli olarak işlenir.</p>
         </div>
       </div>
 
-      {/* Error */}
-      {initPaymentMutation.isError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          Ödeme başlatılamadı. Lütfen tekrar deneyin.
+      {/* Steps */}
+      <div className="flex items-center gap-2 px-1">
+        <StepDot n={1} done={step1Done} active={!step1Done} />
+        <span className={`text-xs font-medium ${step1Done ? 'text-gray-400' : 'text-gray-700'}`}>Saat Seç</span>
+        <div className="flex-1 h-px bg-gray-200" />
+        <StepDot n={2} done={false} active={step1Done} />
+        <span className={`text-xs font-medium ${step1Done ? 'text-gray-700' : 'text-gray-300'}`}>Not & Ödeme</span>
+      </div>
+
+      {/* Service card */}
+      {service && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-bold text-gray-900 truncate">{service.name}</p>
+            <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1.5">
+              <Clock size={12} /> {service.durationMinutes} dakika
+            </p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="font-extrabold text-xl text-gray-900">₺{Number(service.price).toLocaleString('tr-TR')}</p>
+          </div>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-gray-400 transition-colors bg-white"
-        >
-          Geri
-        </button>
-        <button
-          onClick={() => initPaymentMutation.mutate()}
-          disabled={initPaymentMutation.isPending}
-          className="flex-1 py-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ background: 'var(--color-primary)' }}
-        >
-          {initPaymentMutation.isPending ? 'Hazırlanıyor…' : 'Ödemeye Geç →'}
-        </button>
+      {/* Calendar */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+          <CalendarDays size={15} style={{ color: 'var(--color-primary)' }} />
+          <h2 className="text-sm font-semibold text-gray-800">Tarih ve Saat Seç</h2>
+          {selectedSlotLabel && (
+            <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+              {selectedSlotLabel}
+            </span>
+          )}
+        </div>
+        <div className="p-5">
+          {service ? (
+            <SlotPicker
+              providerId={providerId!}
+              serviceId={serviceId!}
+              durationMinutes={service.durationMinutes}
+              selectedSlotStart={selectedSlotStart}
+              onSelect={(start, label) => { setSelectedSlotStart(start || null); setSelectedSlotLabel(label || null) }}
+            />
+          ) : (
+            <p className="text-sm text-gray-400 py-6 text-center">Hizmet bulunamadı.</p>
+          )}
+        </div>
       </div>
+
+      {/* Notes + payment — only when slot selected */}
+      {step1Done && (
+        <>
+          {/* Selected slot confirmation */}
+          <div className="flex items-center gap-3 p-4 rounded-2xl border"
+            style={{ background: 'var(--color-primary-light)', borderColor: 'var(--color-primary)' }}>
+            <CheckCircle size={18} style={{ color: 'var(--color-primary)' }} className="flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>Seçilen saat</p>
+              <p className="text-sm font-bold text-gray-900">{fmtDate(selectedSlotStart!)}</p>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+              Öğretmene not <span className="font-normal text-gray-400 text-xs">(isteğe bağlı)</span>
+            </label>
+            <textarea
+              value={clientNotes}
+              onChange={(e) => setClientNotes(e.target.value)}
+              placeholder="Odaklanmak istediğiniz konuları, önceki bilginizi yazabilirsiniz…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
+              rows={3}
+            />
+          </div>
+
+          {/* Payment trust badge */}
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+              <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — PayTR</p>
+              <p className="text-xs text-gray-400">Kart bilgileriniz 256-bit SSL ile şifreli olarak işlenir.</p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={() => initPaymentMutation.mutate()}
+            disabled={initPaymentMutation.isPending}
+            className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {initPaymentMutation.isPending ? 'Hazırlanıyor…' : `Ödemeye Geç → ₺${Number(service?.price ?? 0).toLocaleString('tr-TR')}`}
+          </button>
+        </>
+      )}
+
+      {!step1Done && (
+        <p className="text-center text-sm text-gray-400 pb-4">Devam etmek için yukarıdan bir saat seçin.</p>
+      )}
     </div>
   )
 }

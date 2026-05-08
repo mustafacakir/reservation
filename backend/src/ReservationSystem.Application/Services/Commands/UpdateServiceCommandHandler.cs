@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.Services.Queries;
+using ReservationSystem.Domain.Enums;
 
 namespace ReservationSystem.Application.Services.Commands;
 
@@ -12,7 +13,9 @@ public record UpdateServiceCommand(
     string Description,
     int DurationMinutes,
     decimal Price,
-    string Currency
+    string Currency,
+    string SessionType = "Individual",
+    int? MaxParticipants = null
 ) : IRequest<ServiceDto>;
 
 public class UpdateServiceCommandHandler(
@@ -32,12 +35,24 @@ public class UpdateServiceCommandHandler(
             .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.ProviderId == provider.Id, cancellationToken)
             ?? throw new NotFoundException("Service", request.ServiceId);
 
-        service.Update(request.Name, request.Description, request.DurationMinutes,
-            request.Price, string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency, 60);
+        var sessionType = Enum.TryParse<SessionType>(request.SessionType, out var st)
+            ? st : Domain.Enums.SessionType.Individual;
+
+        service.Update(
+            request.Name, request.Description, request.DurationMinutes,
+            request.Price, string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency,
+            60, sessionType,
+            sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null);
 
         await db.SaveChangesAsync(cancellationToken);
 
+        var totalBookings = await db.Bookings.CountAsync(b =>
+            b.ServiceId == service.Id &&
+            b.Status != BookingStatus.Cancelled &&
+            b.Status != BookingStatus.NoShow, cancellationToken);
+
         return new ServiceDto(service.Id, service.Name, service.Description,
-            service.DurationMinutes, service.Price, service.Currency, service.IsActive);
+            service.DurationMinutes, service.Price, service.Currency, service.IsActive,
+            service.SessionType.ToString(), service.MaxParticipants, totalBookings);
     }
 }

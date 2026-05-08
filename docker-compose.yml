@@ -9,7 +9,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
-    # No host port mapping — accessed only via internal docker network
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-reservation_user} -d ${DB_NAME:-reservation_db}"]
       interval: 10s
@@ -47,6 +48,18 @@ services:
       - Jwt__Secret=${JWT_SECRET:-dev-secret-key-minimum-32-characters-long}
       - Jwt__Issuer=reservation-api
       - Jwt__Audience=reservation-clients
+      - Email__SmtpUsername=${EMAIL_SMTP_USERNAME:-}
+      - Email__SmtpPassword=${EMAIL_SMTP_PASSWORD:-}
+      - Email__FromEmail=${EMAIL_FROM:-noreply@example.com}
+      - Email__FromName=${EMAIL_FROM_NAME:-Randevu Sistemi}
+      - Email__Enabled=${EMAIL_ENABLED:-true}
+      - PayTr__MerchantId=${PAYTR_MERCHANT_ID:-}
+      - PayTr__MerchantKey=${PAYTR_MERCHANT_KEY:-}
+      - PayTr__MerchantSalt=${PAYTR_MERCHANT_SALT:-}
+      - PayTr__TestMode=${PAYTR_TEST_MODE:-true}
+      - PayTr__NotificationUrl=${PAYTR_NOTIFICATION_URL:-http://localhost:5000/api/v1/payments/paytr/notify}
+      - PayTr__ReturnBaseUrl=${PAYTR_RETURN_BASE_URL:-http://localhost:5000/api/v1/payments/paytr/complete}
+      - PayTr__FrontendBaseUrl=${PAYTR_FRONTEND_BASE_URL:-http://localhost:3000}
     volumes:
       - uploads_data:/app/wwwroot/uploads
     ports:
@@ -67,7 +80,7 @@ services:
       target: development
     container_name: reservation-frontend
     environment:
-      - VITE_API_BASE_URL=http://localhost:5000/api/v1
+      - VITE_API_PROXY_TARGET=http://api:8080
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public

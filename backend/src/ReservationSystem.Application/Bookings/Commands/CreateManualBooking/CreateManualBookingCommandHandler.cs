@@ -6,6 +6,7 @@ using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
 using ReservationSystem.Domain.Enums;
 using ReservationSystem.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace ReservationSystem.Application.Bookings.Commands.CreateManualBooking;
 
@@ -24,7 +25,9 @@ public record CreateManualBookingCommand(
 public class CreateManualBookingCommandHandler(
     IApplicationDbContext db,
     ICurrentUserService currentUser,
-    ITenantService tenantService)
+    ITenantService tenantService,
+    IEmailService emailService,
+    ILogger<CreateManualBookingCommandHandler> logger)
     : IRequestHandler<CreateManualBookingCommand, BookingDto>
 {
     public async Task<BookingDto> Handle(
@@ -44,17 +47,34 @@ public class CreateManualBookingCommandHandler(
 
         var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
 
-        var hasConflict = await db.Bookings
-            .AnyAsync(b =>
-                b.ProviderId == provider.Id &&
-                b.Status != BookingStatus.Cancelled &&
-                b.Status != BookingStatus.NoShow &&
-                b.StartUtc < endUtc &&
-                b.EndUtc > request.StartUtc,
-                cancellationToken);
+        if (service.SessionType == SessionType.Group)
+        {
+            var participantCount = await db.Bookings
+                .CountAsync(b =>
+                    b.ServiceId == service.Id &&
+                    b.StartUtc == request.StartUtc &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow,
+                    cancellationToken);
 
-        if (hasConflict)
-            throw new SlotNotAvailableException(request.StartUtc);
+            if (participantCount >= service.MaxParticipants)
+                throw new ConflictException(
+                    $"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+        }
+        else
+        {
+            var hasConflict = await db.Bookings
+                .AnyAsync(b =>
+                    b.ProviderId == provider.Id &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow &&
+                    b.StartUtc < endUtc &&
+                    b.EndUtc > request.StartUtc,
+                    cancellationToken);
+
+            if (hasConflict)
+                throw new SlotNotAvailableException(request.StartUtc);
+        }
 
         var clientNotes = string.IsNullOrWhiteSpace(request.Notes)
             ? $"Öğrenci: {request.StudentName}"
@@ -71,6 +91,20 @@ public class CreateManualBookingCommandHandler(
 
         await db.Bookings.AddAsync(booking, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Fire-and-forget email (manual booking has no client email)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendBookingConfirmationAsync(new BookingEmailData(
+                    booking.Id, service.Name,
+                    provider.User.FullName, provider.User.Email,
+                    request.StudentName, null,
+                    booking.StartUtc, booking.EndUtc));
+            }
+            catch (Exception ex) { logger.LogError(ex, "Manual booking confirmation email failed"); }
+        }, CancellationToken.None);
 
         return new BookingDto(
             booking.Id, service.Id, service.Name,

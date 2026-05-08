@@ -20,6 +20,7 @@ public class GetMyProfileQueryHandler(
             ?? throw new NotFoundException("ServiceProvider", userId);
 
         return new MyProfileDto(
+            provider.Id,
             provider.User.FirstName,
             provider.User.LastName,
             provider.User.AvatarUrl,

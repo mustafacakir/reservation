@@ -3,9 +3,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, User, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
 import { authApi } from '@/api/endpoints/auth.api'
 import { useAuthStore } from '@/store/auth.store'
+import { useTenantStore } from '@/store/tenant.store'
+import { getSectorConfig } from '@/config/sectors'
 import Logo from '@/components/landing/Logo'
 
 const schema = z.object({
@@ -16,16 +18,26 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+function getRegisterErrorMessage(error: unknown): string {
+  const msg = (error as any)?.response?.data?.message as string | undefined
+  if (!msg) return 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.'
+  if (msg.includes('already registered')) return 'Bu e-posta adresi zaten kayıtlı.'
+  if (msg.includes('Tenant context')) return 'Yapılandırma hatası. Lütfen sayfayı yenileyin.'
+  return msg
+}
+
 const BENEFITS = [
-  'Uzman öğretmenlerle birebir ders',
+  'Uzman profesyonellerle birebir seans',
   'İstediğin saat ve günde rezervasyon',
   'Güvenli online ödeme',
-  'İlk ders memnuniyet garantisi',
+  '24 saat öncesine kadar ücretsiz iptal',
 ]
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const { sector } = useTenantStore()
+  const sectorCfg = getSectorConfig(sector)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -35,7 +47,7 @@ export default function RegisterPage() {
     mutationFn: authApi.register,
     onSuccess: (data) => {
       setAuth({ ...data, fullName: '', role: 'Client' })
-      navigate('/client/browse', { replace: true })
+      navigate('/', { replace: true })
     },
   })
 
@@ -50,10 +62,10 @@ export default function RegisterPage() {
 
         <div>
           <h2 className="text-4xl font-bold text-white leading-snug mb-4">
-            Başarıya giden yolda<br />doğru öğretmen seç.
+            {sectorCfg.heroTitle}
           </h2>
           <p className="text-white/70 text-base mb-10">
-            Ücretsiz hesap oluştur, hemen ders planlamaya başla.
+            Ücretsiz hesap oluştur, hemen başla.
           </p>
           <div className="space-y-3">
             {BENEFITS.map((b) => (
@@ -65,7 +77,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <p className="text-white/40 text-xs">© 2025 sevdailematematik</p>
+        <p className="text-white/40 text-xs">© 2025 · {sectorCfg.label}</p>
       </div>
 
       {/* Right panel */}
@@ -83,8 +95,8 @@ export default function RegisterPage() {
 
           {mutation.error && (
             <div className="mb-5 flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-700">
-              <span className="mt-0.5 flex-shrink-0">⚠️</span>
-              <span>Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.</span>
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-red-400" />
+              <span>{getRegisterErrorMessage(mutation.error)}</span>
             </div>
           )}
 

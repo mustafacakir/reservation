@@ -12,5 +12,9 @@ public record AvailableSlotDto(
     DateTimeOffset StartUtc,
     DateTimeOffset EndUtc,
     string StartLocal,
-    string EndLocal
+    string EndLocal,
+    bool IsGroup,
+    int? MaxParticipants,
+    int CurrentParticipants,
+    bool IsFull
 );

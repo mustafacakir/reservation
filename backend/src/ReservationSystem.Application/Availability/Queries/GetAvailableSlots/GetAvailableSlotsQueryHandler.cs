@@ -14,10 +14,12 @@ public class GetAvailableSlotsQueryHandler(
     public async Task<List<AvailableSlotDto>> Handle(
         GetAvailableSlotsQuery request, CancellationToken cancellationToken)
     {
-        // 1. Load service to get duration
+        // 1. Load service
         var service = await db.Services
             .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.IsActive, cancellationToken)
             ?? throw new NotFoundException(nameof(Domain.Entities.Service), request.ServiceId);
+
+        var isGroup = service.SessionType == SessionType.Group;
 
         // 2. Check for availability exception on this date
         var exception = await db.AvailabilityExceptions
@@ -28,58 +30,87 @@ public class GetAvailableSlotsQueryHandler(
         if (exception?.Type == AvailabilityExceptionType.DayOff)
             return [];
 
-        // 3. Determine working window for this date
-        TimeOnly windowStart, windowEnd;
+        // 3. Determine time windows for this day (list to support multiple ranges)
+        List<(TimeOnly Start, TimeOnly End)> windows;
 
         if (exception?.Type == AvailabilityExceptionType.CustomHours
             && exception.CustomStartTime.HasValue && exception.CustomEndTime.HasValue)
         {
-            windowStart = exception.CustomStartTime.Value;
-            windowEnd = exception.CustomEndTime.Value;
+            windows = [(exception.CustomStartTime.Value, exception.CustomEndTime.Value)];
         }
         else
         {
-            // Load weekly slot for this day of week
-            var weeklySlot = await db.AvailabilitySlots
-                .FirstOrDefaultAsync(s =>
+            var weeklySlots = await db.AvailabilitySlots
+                .Where(s =>
                     s.ProviderId == request.ProviderId &&
                     s.DayOfWeek == request.Date.DayOfWeek &&
-                    s.IsActive, cancellationToken);
+                    s.IsActive)
+                .OrderBy(s => s.StartTime)
+                .ToListAsync(cancellationToken);
 
-            if (weeklySlot == null) return [];
+            if (weeklySlots.Count == 0) return [];
 
-            windowStart = weeklySlot.StartTime;
-            windowEnd = weeklySlot.EndTime;
+            windows = weeklySlots.Select(s => (s.StartTime, s.EndTime)).ToList();
         }
 
         // 4. Get tenant timezone
         var tenant = await tenantService.GetCurrentTenantAsync(cancellationToken);
-        var tzInfo = GetTimeZoneInfo(tenant?.Settings.TimeZone ?? "UTC");
+        var tzInfo = GetTimeZoneInfo(tenant?.Settings.TimeZone ?? "Europe/Istanbul");
 
-        // 5. Generate candidate slots
-        var candidates = GenerateSlots(request.Date, windowStart, windowEnd,
-            service.DurationMinutes, tzInfo);
+        // 5. Generate candidate slots across all windows
+        var candidates = windows
+            .SelectMany(w => GenerateSlots(request.Date, w.Start, w.End, service.DurationMinutes, tzInfo))
+            .OrderBy(s => s.StartUtc)
+            .ToList();
 
         if (candidates.Count == 0) return [];
 
-        // 6. Load existing bookings (Pending or Confirmed) for the day
-        var dayStart = candidates.First().StartUtc;
-        var dayEnd = candidates.Last().EndUtc;
+        var rangeStart = candidates.First().StartUtc;
+        var rangeEnd = candidates.Last().EndUtc;
 
+        // 6a. Group: return all slots with booking counts
+        if (isGroup)
+        {
+            var groupCounts = await db.Bookings
+                .Where(b =>
+                    b.ServiceId == request.ServiceId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow &&
+                    b.StartUtc >= rangeStart &&
+                    b.StartUtc < rangeEnd)
+                .GroupBy(b => b.StartUtc)
+                .Select(g => new { StartUtc = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.StartUtc, g => g.Count, cancellationToken);
+
+            return candidates.Select(slot =>
+            {
+                groupCounts.TryGetValue(slot.StartUtc, out var count);
+                var isFull = service.MaxParticipants.HasValue && count >= service.MaxParticipants.Value;
+                return slot with
+                {
+                    IsGroup = true,
+                    MaxParticipants = service.MaxParticipants,
+                    CurrentParticipants = count,
+                    IsFull = isFull,
+                };
+            }).ToList();
+        }
+
+        // 6b. Individual: filter out slots overlapping existing bookings
         var existingBookings = await db.Bookings
             .Where(b =>
                 b.ProviderId == request.ProviderId &&
                 b.Status != BookingStatus.Cancelled &&
                 b.Status != BookingStatus.NoShow &&
-                b.StartUtc < dayEnd &&
-                b.EndUtc > dayStart)
+                b.StartUtc < rangeEnd &&
+                b.EndUtc > rangeStart)
             .Select(b => new { b.StartUtc, b.EndUtc })
             .ToListAsync(cancellationToken);
 
-        // 7. Filter out conflicting slots
         return candidates
             .Where(slot => !existingBookings.Any(b =>
                 b.StartUtc < slot.EndUtc && b.EndUtc > slot.StartUtc))
+            .Select(slot => slot with { IsGroup = false, MaxParticipants = null, CurrentParticipants = 0, IsFull = false })
             .ToList();
     }
 
@@ -96,14 +127,17 @@ public class GetAvailableSlotsQueryHandler(
             var startUtc = TimeZoneInfo.ConvertTimeToUtc(startDt, tzInfo);
             var endUtc = startUtc.AddMinutes(durationMinutes);
 
-            // Don't return slots in the past
             if (startUtc > DateTimeOffset.UtcNow)
             {
                 slots.Add(new AvailableSlotDto(
                     StartUtc: startUtc,
                     EndUtc: endUtc,
                     StartLocal: current.ToString("HH:mm"),
-                    EndLocal: current.AddMinutes(durationMinutes).ToString("HH:mm")
+                    EndLocal: current.AddMinutes(durationMinutes).ToString("HH:mm"),
+                    IsGroup: false,
+                    MaxParticipants: null,
+                    CurrentParticipants: 0,
+                    IsFull: false
                 ));
             }
 

@@ -7,32 +7,36 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ config }: HeroSectionProps) {
+  const symbols = config.decorativeSymbols
+
+  const positions = [
+    { top: '8%', left: '4%', size: '5rem', rotate: '-15deg', opacity: 0.06 },
+    { top: '15%', right: '6%', size: '6rem', rotate: '10deg', opacity: 0.06 },
+    { bottom: '20%', left: '8%', size: '4.5rem', rotate: '20deg', opacity: 0.06 },
+    { bottom: '10%', right: '10%', size: '5rem', rotate: '-10deg', opacity: 0.06 },
+    { top: '40%', left: '2%', size: '3rem', rotate: '5deg', opacity: 0.05 },
+    { top: '35%', right: '3%', size: '4rem', rotate: '-5deg', opacity: 0.05 },
+  ]
+
   return (
     <section
       className="relative overflow-hidden py-24 px-4"
       style={{ background: `linear-gradient(135deg, var(--hero-gradient-from) 0%, var(--hero-gradient-to) 100%)` }}
     >
-      {/* Decorative math symbols */}
+      {/* Decorative symbols */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden>
-        {[
-          { symbol: '∑', top: '8%', left: '4%', size: '5rem', rotate: '-15deg', opacity: 0.06 },
-          { symbol: '√', top: '15%', right: '6%', size: '6rem', rotate: '10deg', opacity: 0.06 },
-          { symbol: 'π', bottom: '20%', left: '8%', size: '4.5rem', rotate: '20deg', opacity: 0.06 },
-          { symbol: '∞', bottom: '10%', right: '10%', size: '5rem', rotate: '-10deg', opacity: 0.06 },
-          { symbol: '÷', top: '40%', left: '2%', size: '3rem', rotate: '5deg', opacity: 0.05 },
-          { symbol: '∫', top: '35%', right: '3%', size: '4rem', rotate: '-5deg', opacity: 0.05 },
-        ].map((d, i) => (
+        {positions.map((d, i) => (
           <span
             key={i}
             className="absolute font-black"
             style={{
-              top: d.top, bottom: d.bottom, left: d.left, right: d.right,
+              top: d.top, bottom: (d as any).bottom, left: (d as any).left, right: (d as any).right,
               fontSize: d.size, transform: `rotate(${d.rotate})`,
               opacity: d.opacity, color: 'var(--color-primary)',
               fontFamily: 'Georgia, serif',
             }}
           >
-            {d.symbol}
+            {symbols[i % symbols.length]}
           </span>
         ))}
       </div>
@@ -43,8 +47,8 @@ export default function HeroSection({ config }: HeroSectionProps) {
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold mb-6"
           style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
         >
-          <span>🎓</span>
-          <span>Türkiye'nin Matematik Öğretmenleri</span>
+          <span>{config.emoji}</span>
+          <span>{config.label}</span>
         </div>
 
         {/* Headline */}
@@ -63,7 +67,7 @@ export default function HeroSection({ config }: HeroSectionProps) {
             className="px-8 py-4 rounded-2xl text-base font-bold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105"
             style={{ background: 'var(--color-primary)' }}
           >
-            Öğretmenleri Keşfet →
+            {config.browseLabel} →
           </Link>
           <a
             href="#nasil-calisir"

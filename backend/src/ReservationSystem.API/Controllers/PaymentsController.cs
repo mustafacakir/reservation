@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using ReservationSystem.Application.Payments;
 using ReservationSystem.Application.Payments.Commands.CreateBookingFromPayment;
@@ -15,45 +16,118 @@ public class PaymentsController(
     IMediator mediator,
     IIyzicoPaymentService iyzicoService,
     IPendingPaymentStore pendingStore,
-    IOptions<IyzicoOptions> iyzicoOpts) : ControllerBase
+    PayTrPaymentService payTrService,
+    IDistributedCache cache,
+    IOptions<IyzicoOptions> iyzicoOpts,
+    IOptions<PayTrOptions> payTrOpts) : ControllerBase
 {
+    // ── Initialize (PayTR by default) ──────────────────────────────────────────
+
     [HttpPost("initialize")]
     [Authorize]
     public async Task<IActionResult> Initialize(
         [FromBody] InitializePaymentCommand command, CancellationToken ct)
     {
-        var result = await mediator.Send(command, ct);
-        return Ok(new { checkoutFormContent = result.CheckoutFormContent, token = result.Token });
+        var userIp = HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "127.0.0.1";
+        var result = await mediator.Send(command with { UserIp = userIp }, ct);
+
+        return Ok(new
+        {
+            gatewayType  = result.GatewayType,
+            formContent  = result.FormContent,
+            iframeToken  = result.IframeToken,
+            pendingKey   = result.PendingKey,
+            // backward compat fields
+            checkoutFormContent = result.FormContent,
+            token = result.PendingKey,
+        });
     }
 
-    /// <summary>
-    /// Called by iyzico (browser POST redirect) after payment attempt.
-    /// Verifies payment, creates booking, and redirects to frontend.
-    /// </summary>
+    // ── iyzico callback (legacy, browser POST redirect) ────────────────────────
+
     [HttpPost("callback")]
     [AllowAnonymous]
-    public async Task<IActionResult> Callback([FromForm] string token, CancellationToken ct)
+    public async Task<IActionResult> IyzicoCallback([FromForm] string token, CancellationToken ct)
     {
         var frontendUrl = iyzicoOpts.Value.FrontendBaseUrl;
-
         try
         {
-            var (success, paymentId, error) = await iyzicoService.VerifyAsync(token, ct);
-
+            var (success, _, error) = await iyzicoService.VerifyAsync(token, ct);
             if (!success)
                 return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString(error ?? "Ödeme başarısız")}");
 
-            var pendingData = await pendingStore.RetrieveAsync(token, ct);
-            if (pendingData is null)
+            var pending = await pendingStore.RetrieveAsync(token, ct);
+            if (pending is null)
                 return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme bilgisi bulunamadı")}");
 
-            var bookingId = await mediator.Send(new CreateBookingFromPaymentCommand(pendingData), ct);
-
+            var bookingId = await mediator.Send(new CreateBookingFromPaymentCommand(pending), ct);
             return Redirect($"{frontendUrl}/client/payment-result?success=true&bookingId={bookingId}");
         }
         catch (Exception ex)
         {
             return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString(ex.Message)}");
         }
+    }
+
+    // ── PayTR server-to-server notification ────────────────────────────────────
+
+    [HttpPost("paytr/notify")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PayTrNotify(CancellationToken ct)
+    {
+        var form = Request.Form;
+        var merchantOid = form["merchant_oid"].ToString();
+        var status      = form["status"].ToString();
+        var totalAmount = form["total_amount"].ToString();
+        var hash        = form["hash"].ToString();
+
+        if (!payTrService.VerifyNotification(merchantOid, status, totalAmount, hash, out _))
+            return Content("INVALID_HASH");
+
+        try
+        {
+            if (status == "success")
+            {
+                var pending = await pendingStore.RetrieveAsync(merchantOid, ct);
+                if (pending is not null)
+                {
+                    var bookingId = await mediator.Send(new CreateBookingFromPaymentCommand(pending), ct);
+                    await cache.SetStringAsync(
+                        $"paytr:result:{merchantOid}",
+                        bookingId.ToString(),
+                        new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                        }, ct);
+                }
+            }
+        }
+        catch
+        {
+            // Always return OK to PayTR even on internal errors
+        }
+
+        return Content("OK");
+    }
+
+    // ── PayTR browser redirect after successful payment ────────────────────────
+
+    [HttpGet("paytr/complete")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PayTrComplete([FromQuery] string oid, CancellationToken ct)
+    {
+        var frontendUrl = payTrOpts.Value.FrontendBaseUrl;
+
+        // Notification fires before browser redirect; poll up to ~3 seconds
+        for (int i = 0; i < 6; i++)
+        {
+            var bookingIdStr = await cache.GetStringAsync($"paytr:result:{oid}", ct);
+            if (bookingIdStr is not null)
+                return Redirect($"{frontendUrl}/client/payment-result?success=true&bookingId={bookingIdStr}");
+
+            if (i < 5) await Task.Delay(500, ct);
+        }
+
+        return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme işlemi zaman aşımına uğradı, lütfen derslerinizi kontrol edin.")}");
     }
 }

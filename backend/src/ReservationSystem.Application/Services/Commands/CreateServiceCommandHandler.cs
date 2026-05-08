@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.Services.Queries;
+using ReservationSystem.Domain.Enums;
 
 namespace ReservationSystem.Application.Services.Commands;
 
@@ -11,7 +12,9 @@ public record CreateServiceCommand(
     string Description,
     int DurationMinutes,
     decimal Price,
-    string Currency
+    string Currency,
+    string SessionType = "Individual",
+    int? MaxParticipants = null
 ) : IRequest<ServiceDto>;
 
 public class CreateServiceCommandHandler(
@@ -29,16 +32,22 @@ public class CreateServiceCommandHandler(
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("ServiceProvider", userId);
 
+        var sessionType = Enum.TryParse<SessionType>(request.SessionType, out var st)
+            ? st : Domain.Enums.SessionType.Individual;
+
         var service = Domain.Entities.Service.Create(
             tenantId, provider.Id,
             request.Name, request.Description,
             request.DurationMinutes, request.Price,
-            string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency);
+            string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency,
+            sessionType,
+            sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null);
 
         await db.Services.AddAsync(service, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         return new ServiceDto(service.Id, service.Name, service.Description,
-            service.DurationMinutes, service.Price, service.Currency, service.IsActive);
+            service.DurationMinutes, service.Price, service.Currency, service.IsActive,
+            service.SessionType.ToString(), service.MaxParticipants, 0);
     }
 }

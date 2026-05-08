@@ -5,6 +5,7 @@ namespace ReservationSystem.Application.ServiceProviders.Queries.GetMyProfile;
 public record GetMyProfileQuery : IRequest<MyProfileDto>;
 
 public record MyProfileDto(
+    Guid ProviderId,
     string FirstName,
     string LastName,
     string? AvatarUrl,

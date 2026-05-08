@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
+using ReservationSystem.Domain.Enums;
 
 namespace ReservationSystem.Application.Services.Queries;
 
@@ -14,7 +15,10 @@ public record ServiceDto(
     int DurationMinutes,
     decimal Price,
     string Currency,
-    bool IsActive
+    bool IsActive,
+    string SessionType,
+    int? MaxParticipants,
+    int TotalBookings
 );
 
 public class GetMyServicesQueryHandler(
@@ -33,7 +37,21 @@ public class GetMyServicesQueryHandler(
         return await db.Services
             .Where(s => s.ProviderId == provider.Id && s.IsActive)
             .OrderBy(s => s.Name)
-            .Select(s => new ServiceDto(s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.Currency, s.IsActive))
+            .Select(s => new ServiceDto(
+                s.Id,
+                s.Name,
+                s.Description,
+                s.DurationMinutes,
+                s.Price,
+                s.Currency,
+                s.IsActive,
+                s.SessionType.ToString(),
+                s.MaxParticipants,
+                db.Bookings.Count(b =>
+                    b.ServiceId == s.Id &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow)
+            ))
             .ToListAsync(cancellationToken);
     }
 }

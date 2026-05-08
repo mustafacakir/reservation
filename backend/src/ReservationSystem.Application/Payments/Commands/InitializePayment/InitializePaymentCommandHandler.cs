@@ -11,7 +11,7 @@ public class InitializePaymentCommandHandler(
     IApplicationDbContext db,
     ICurrentUserService currentUser,
     ITenantService tenantService,
-    IIyzicoPaymentService iyzicoService,
+    IPaymentGateway paymentGateway,
     IPendingPaymentStore pendingStore)
     : IRequestHandler<InitializePaymentCommand, InitializePaymentResult>
 {
@@ -33,31 +33,60 @@ public class InitializePaymentCommandHandler(
         if (service.ProviderId != request.ProviderId)
             throw new ValidationException(["Service does not belong to the specified provider."]);
 
-        // Check for booking conflicts
         var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
-        var hasConflict = await db.Bookings
-            .AnyAsync(b =>
-                b.ProviderId == request.ProviderId &&
-                b.Status != BookingStatus.Cancelled &&
-                b.Status != BookingStatus.NoShow &&
-                b.StartUtc < endUtc &&
-                b.EndUtc > request.StartUtc,
-                cancellationToken);
+
+        bool hasConflict;
+        if (service.SessionType == Domain.Enums.SessionType.Group && service.MaxParticipants.HasValue)
+        {
+            var participantCount = await db.Bookings
+                .CountAsync(b =>
+                    b.ServiceId == service.Id &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow &&
+                    b.StartUtc == request.StartUtc,
+                    cancellationToken);
+            hasConflict = participantCount >= service.MaxParticipants.Value;
+        }
+        else
+        {
+            hasConflict = await db.Bookings
+                .AnyAsync(b =>
+                    b.ProviderId == request.ProviderId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow &&
+                    b.StartUtc < endUtc &&
+                    b.EndUtc > request.StartUtc,
+                    cancellationToken);
+        }
 
         if (hasConflict)
             throw new SlotNotAvailableException(request.StartUtc);
 
-        // Initialize iyzico checkout form
-        var (formContent, token) = await iyzicoService.InitializeAsync(
-            userId, user.Email, user.FirstName, user.LastName,
-            service.Id, service.Name, service.Price,
+        var merchantOrderId = Guid.NewGuid().ToString("N");
+
+        var gatewayRequest = new GatewayInitRequest(
+            merchantOrderId,
+            userId,
+            user.Email,
+            user.FirstName,
+            user.LastName,
+            service.Id,
+            service.Name,
+            service.Price,
+            request.UserIp);
+
+        var gatewayResult = await paymentGateway.InitializeAsync(gatewayRequest, cancellationToken);
+
+        await pendingStore.StoreAsync(
+            gatewayResult.PendingKey,
+            new PendingPaymentData(userId, tenantId, service.Id, request.ProviderId, request.StartUtc, request.ClientNotes),
+            TimeSpan.FromMinutes(30),
             cancellationToken);
 
-        // Store pending booking data in Redis keyed by iyzico token
-        await pendingStore.StoreAsync(token, new PendingPaymentData(
-            userId, tenantId, service.Id, request.ProviderId, request.StartUtc, request.ClientNotes),
-            TimeSpan.FromMinutes(30), cancellationToken);
-
-        return new InitializePaymentResult(formContent, token);
+        return new InitializePaymentResult(
+            gatewayResult.GatewayType,
+            gatewayResult.FormContent,
+            gatewayResult.IframeToken,
+            gatewayResult.PendingKey);
     }
 }

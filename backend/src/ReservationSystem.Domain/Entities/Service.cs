@@ -1,4 +1,5 @@
 using ReservationSystem.Domain.Common;
+using ReservationSystem.Domain.Enums;
 
 namespace ReservationSystem.Domain.Entities;
 
@@ -10,9 +11,14 @@ public class Service : BaseEntity, ITenantEntity
     public string Description { get; private set; } = string.Empty;
     public int DurationMinutes { get; private set; }
     public decimal Price { get; private set; }
-    public string Currency { get; private set; } = "USD";
+    public string Currency { get; private set; } = "TRY";
     public bool IsActive { get; private set; } = true;
     public int MaxAdvanceBookingDays { get; private set; } = 60;
+
+    public SessionType SessionType { get; private set; } = SessionType.Individual;
+
+    /// <summary>Only set for Group sessions. Null means Individual (no limit).</summary>
+    public int? MaxParticipants { get; private set; }
 
     // Navigation
     public ServiceProvider Provider { get; private set; } = default!;
@@ -22,11 +28,14 @@ public class Service : BaseEntity, ITenantEntity
     private Service() { }
 
     public static Service Create(Guid tenantId, Guid providerId, string name,
-        string description, int durationMinutes, decimal price, string currency)
+        string description, int durationMinutes, decimal price, string currency,
+        SessionType sessionType = SessionType.Individual, int? maxParticipants = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (durationMinutes <= 0) throw new ArgumentOutOfRangeException(nameof(durationMinutes));
         if (price < 0) throw new ArgumentOutOfRangeException(nameof(price));
+        if (sessionType == SessionType.Group && (maxParticipants is null or <= 0))
+            throw new ArgumentOutOfRangeException(nameof(maxParticipants), "Group sessions require MaxParticipants > 0.");
 
         return new Service
         {
@@ -36,19 +45,27 @@ public class Service : BaseEntity, ITenantEntity
             Description = description,
             DurationMinutes = durationMinutes,
             Price = price,
-            Currency = currency
+            Currency = currency,
+            SessionType = sessionType,
+            MaxParticipants = sessionType == SessionType.Group ? maxParticipants : null,
         };
     }
 
     public void Update(string name, string description, int durationMinutes,
-        decimal price, string currency, int maxAdvanceBookingDays)
+        decimal price, string currency, int maxAdvanceBookingDays,
+        SessionType sessionType = SessionType.Individual, int? maxParticipants = null)
     {
+        if (sessionType == SessionType.Group && (maxParticipants is null or <= 0))
+            throw new ArgumentOutOfRangeException(nameof(maxParticipants), "Group sessions require MaxParticipants > 0.");
+
         Name = name.Trim();
         Description = description;
         DurationMinutes = durationMinutes;
         Price = price;
         Currency = currency;
         MaxAdvanceBookingDays = maxAdvanceBookingDays;
+        SessionType = sessionType;
+        MaxParticipants = sessionType == SessionType.Group ? maxParticipants : null;
         SetUpdatedAt();
     }
 

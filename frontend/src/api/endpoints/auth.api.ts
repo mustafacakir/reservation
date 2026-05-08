@@ -12,4 +12,7 @@ export const authApi = {
     apiClient.post<{ accessToken: string }>('/auth/refresh', { refreshToken }).then((r) => r.data),
 
   logout: () => apiClient.post('/auth/logout').then((r) => r.data),
+
+  updateProfile: (data: { firstName: string; lastName: string }) =>
+    apiClient.put<{ fullName: string }>('/auth/me', data).then((r) => r.data),
 }

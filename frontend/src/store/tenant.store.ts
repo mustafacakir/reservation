@@ -6,6 +6,10 @@ interface TenantSettings {
   primaryColor?: string
   logoUrl?: string
   cancellationWindowHours: number
+  customTagline?: string
+  city?: string
+  offersInPerson?: boolean
+  offersOnline?: boolean
 }
 
 interface TenantState {

@@ -36,18 +36,36 @@ public class CreateBookingCommandHandler(
 
         var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
 
-        // Check for booking conflict (pessimistic: check in DB)
-        var hasConflict = await db.Bookings
-            .AnyAsync(b =>
-                b.ProviderId == request.ProviderId &&
-                b.Status != Domain.Enums.BookingStatus.Cancelled &&
-                b.Status != Domain.Enums.BookingStatus.NoShow &&
-                b.StartUtc < endUtc &&
-                b.EndUtc > request.StartUtc,
-                cancellationToken);
+        if (service.SessionType == Domain.Enums.SessionType.Group)
+        {
+            // Group session: allow multiple bookings until capacity is reached
+            var participantCount = await db.Bookings
+                .CountAsync(b =>
+                    b.ServiceId == request.ServiceId &&
+                    b.StartUtc == request.StartUtc &&
+                    b.Status != Domain.Enums.BookingStatus.Cancelled &&
+                    b.Status != Domain.Enums.BookingStatus.NoShow,
+                    cancellationToken);
 
-        if (hasConflict)
-            throw new SlotNotAvailableException(request.StartUtc);
+            if (participantCount >= service.MaxParticipants)
+                throw new ConflictException(
+                    $"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+        }
+        else
+        {
+            // Individual session: no time overlap allowed
+            var hasConflict = await db.Bookings
+                .AnyAsync(b =>
+                    b.ProviderId == request.ProviderId &&
+                    b.Status != Domain.Enums.BookingStatus.Cancelled &&
+                    b.Status != Domain.Enums.BookingStatus.NoShow &&
+                    b.StartUtc < endUtc &&
+                    b.EndUtc > request.StartUtc,
+                    cancellationToken);
+
+            if (hasConflict)
+                throw new SlotNotAvailableException(request.StartUtc);
+        }
 
         var booking = Booking.Create(
             tenantId, request.ServiceId, request.ProviderId, clientId,

@@ -56,8 +56,20 @@ public class TenantSettings
 {
     public int DefaultSessionDurationMinutes { get; set; } = 60;
     public int CancellationWindowHours { get; set; } = 24;
-    public string Currency { get; set; } = "USD";
-    public string TimeZone { get; set; } = "UTC";
+    public string Currency { get; set; } = "TRY";
+    public string TimeZone { get; set; } = "Europe/Istanbul";
     public string? LogoUrl { get; set; }
     public string? PrimaryColor { get; set; }
+
+    /// <summary>Hero/landing page tagline shown on tenant's public page. Overrides sector default.</summary>
+    public string? CustomTagline { get; set; }
+
+    /// <summary>City/location shown on landing page (e.g. "İstanbul").</summary>
+    public string? City { get; set; }
+
+    /// <summary>Whether the provider offers in-person sessions.</summary>
+    public bool OffersInPerson { get; set; } = true;
+
+    /// <summary>Whether the provider offers online sessions.</summary>
+    public bool OffersOnline { get; set; } = true;
 }

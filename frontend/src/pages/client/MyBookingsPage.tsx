@@ -1,120 +1,117 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Clock, Banknote } from 'lucide-react'
+import { CalendarDays, Clock, Banknote, ArrowUpRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { bookingsApi } from '@/api/endpoints/bookings.api'
+import { useAuthStore } from '@/store/auth.store'
 import type { Booking, BookingStatus } from '@/types/booking.types'
 
-const statusLabel: Record<BookingStatus, string> = {
-  Pending: 'Beklemede',
-  Confirmed: 'Onaylandı',
-  Cancelled: 'İptal Edildi',
-  Completed: 'Tamamlandı',
-  NoShow: 'Gelmedi',
+const STATUS_CFG: Record<BookingStatus, { label: string; color: string; bg: string; bar: string }> = {
+  Pending:   { label: 'Beklemede',  color: 'text-amber-700',   bg: 'bg-amber-100',   bar: 'bg-amber-400' },
+  Confirmed: { label: 'Onaylandı', color: 'text-emerald-700', bg: 'bg-emerald-100', bar: 'bg-emerald-400' },
+  Cancelled: { label: 'İptal',     color: 'text-red-600',     bg: 'bg-red-100',     bar: 'bg-red-400' },
+  Completed: { label: 'Tamamlandı',color: 'text-blue-700',    bg: 'bg-blue-100',    bar: 'bg-blue-400' },
+  NoShow:    { label: 'Gelmedi',   color: 'text-gray-500',    bg: 'bg-gray-100',    bar: 'bg-gray-300' },
 }
 
-const statusStyle: Record<BookingStatus, string> = {
-  Pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  Confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Cancelled: 'bg-red-50 text-red-600 border-red-200',
-  Completed: 'bg-blue-50 text-blue-700 border-blue-200',
-  NoShow: 'bg-gray-100 text-gray-500 border-gray-200',
-}
+type Filter = 'all' | 'upcoming' | 'completed' | 'cancelled'
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'all',       label: 'Tümü' },
+  { key: 'upcoming',  label: 'Yaklaşan' },
+  { key: 'completed', label: 'Tamamlanan' },
+  { key: 'cancelled', label: 'İptal' },
+]
 
-const statusDot: Record<BookingStatus, string> = {
-  Pending: 'bg-amber-400',
-  Confirmed: 'bg-emerald-400',
-  Cancelled: 'bg-red-400',
-  Completed: 'bg-blue-400',
-  NoShow: 'bg-gray-400',
-}
-
-const WEEKDAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+const DAYS  = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
 const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
-function formatDate(utc: string) {
+function fmtFull(utc: string) {
   const d = new Date(utc)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return {
-    day: `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  }
-}
-
-function Avatar({ name }: { name: string }) {
-  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-  return (
-    <div
-      className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-      style={{ background: 'var(--color-primary)' }}
-    >
-      {initials}
-    </div>
-  )
+  return { day: `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 }
 
 function BookingCard({ booking }: { booking: Booking }) {
   const qc = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const cfg = STATUS_CFG[booking.status]
+  const { day, time } = fmtFull(booking.startUtc)
+  const canCancel = booking.status === 'Pending' || booking.status === 'Confirmed'
+  const initials = booking.providerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+
   const cancelMutation = useMutation({
     mutationFn: () => bookingsApi.cancel(booking.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['myBookings'] }),
+    onSuccess: () => { setConfirming(false); qc.invalidateQueries({ queryKey: ['myBookings'] }) },
+    onError: () => setConfirming(false),
   })
 
-  const { day, time } = formatDate(booking.startUtc)
-  const canCancel = booking.status === 'Pending' || booking.status === 'Confirmed'
-
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-      {/* Top color bar based on status */}
-      <div className={`h-1 ${booking.status === 'Confirmed' ? 'bg-emerald-400' : booking.status === 'Cancelled' ? 'bg-red-400' : booking.status === 'Completed' ? 'bg-blue-400' : 'bg-amber-400'}`} />
-
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
+      <div className={`h-1 ${cfg.bar}`} />
       <div className="p-5">
         <div className="flex items-start gap-4">
-          <Avatar name={booking.providerName} />
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {initials}
+          </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-gray-900 text-base leading-tight">{booking.serviceName}</p>
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div className="min-w-0">
+                <p className="font-bold text-gray-900 leading-snug">{booking.serviceName}</p>
                 <p className="text-sm text-gray-500 mt-0.5">{booking.providerName}</p>
               </div>
-              <span className={`flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusStyle[booking.status]}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${statusDot[booking.status]}`} />
-                {statusLabel[booking.status]}
+              <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                {cfg.label}
               </span>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-500">
               <span className="flex items-center gap-1.5">
-                <CalendarDays size={13} className="text-gray-400" />
-                <span>{day}</span>
+                <CalendarDays size={12} className="text-gray-300" />{day}
               </span>
               <span className="flex items-center gap-1.5">
-                <Clock size={13} className="text-gray-400" />
-                <span>{time}</span>
+                <Clock size={12} className="text-gray-300" />{time}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Banknote size={13} className="text-gray-400" />
-                <span className="font-semibold text-gray-800">₺{Number(booking.price).toLocaleString('tr-TR')}</span>
+              <span className="flex items-center gap-1.5 font-semibold text-gray-700">
+                <Banknote size={12} className="text-gray-300" />₺{Number(booking.price).toLocaleString('tr-TR')}
               </span>
             </div>
 
             {booking.clientNotes && (
-              <div className="mt-3 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-xs text-gray-400 mb-0.5 font-medium">Notunuz</p>
-                <p className="text-sm text-gray-600 italic">"{booking.clientNotes}"</p>
-              </div>
+              <p className="mt-3 text-xs text-gray-400 italic bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+                "{booking.clientNotes}"
+              </p>
             )}
 
             {canCancel && (
               <div className="mt-3">
-                <button
-                  onClick={() => cancelMutation.mutate()}
-                  disabled={cancelMutation.isPending}
-                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50 font-medium border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  {cancelMutation.isPending ? 'İptal ediliyor…' : 'İptal Et'}
-                </button>
-                {cancelMutation.isError && (
-                  <span className="text-xs text-red-500 ml-2">İptal başarısız.</span>
+                {confirming ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Dersi iptal etmek istiyor musunuz?</span>
+                    <button
+                      onClick={() => cancelMutation.mutate()}
+                      disabled={cancelMutation.isPending}
+                      className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
+                    >
+                      {cancelMutation.isPending ? '…' : 'Evet, İptal Et'}
+                    </button>
+                    <button
+                      onClick={() => setConfirming(false)}
+                      className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+                    >
+                      Vazgeç
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirming(true)}
+                    className="text-xs text-red-400 hover:text-red-600 font-medium px-3 py-1.5 rounded-lg border border-red-100 hover:border-red-200 hover:bg-red-50 transition-all"
+                  >
+                    Dersi İptal Et
+                  </button>
                 )}
               </div>
             )}
@@ -126,49 +123,121 @@ function BookingCard({ booking }: { booking: Booking }) {
 }
 
 export default function MyBookingsPage() {
+  const [filter, setFilter] = useState<Filter>('all')
+  const { fullName } = useAuthStore()
+  const initials = fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+
   const { data, isLoading } = useQuery({
     queryKey: ['myBookings'],
-    queryFn: () => bookingsApi.getMyBookings(),
+    queryFn: () => bookingsApi.getMyBookings(1, 100),
   })
 
-  const bookings = data?.items ?? []
+  const now = new Date()
+  const all = data?.items ?? []
+
+  const filtered = all.filter((b) => {
+    if (filter === 'upcoming')  return (b.status === 'Confirmed' || b.status === 'Pending') && new Date(b.startUtc) > now
+    if (filter === 'completed') return b.status === 'Completed'
+    if (filter === 'cancelled') return b.status === 'Cancelled' || b.status === 'NoShow'
+    return true
+  }).sort((a, b) => {
+    if (filter === 'upcoming') return new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime()
+    return new Date(b.startUtc).getTime() - new Date(a.startUtc).getTime()
+  })
+
+  const counts: Record<Filter, number> = {
+    all: all.length,
+    upcoming: all.filter((b) => (b.status === 'Confirmed' || b.status === 'Pending') && new Date(b.startUtc) > now).length,
+    completed: all.filter((b) => b.status === 'Completed').length,
+    cancelled: all.filter((b) => b.status === 'Cancelled' || b.status === 'NoShow').length,
+  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Rezervasyonlarım</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {bookings.length > 0 ? `${bookings.length} rezervasyon` : 'Geçmiş ve gelecek dersleriniz'}
-        </p>
+    <div className="space-y-5">
+      {/* Profile + stats header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-extrabold text-white flex-shrink-0"
+          style={{ background: 'var(--color-primary)' }}
+        >
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-gray-900 truncate">{fullName}</p>
+          <div className="flex gap-4 mt-1">
+            {[
+              { label: 'Toplam', value: all.length },
+              { label: 'Yaklaşan', value: counts.upcoming },
+              { label: 'Tamamlanan', value: counts.completed },
+            ].map(({ label, value }) => (
+              <div key={label} className="text-center">
+                <p className="text-sm font-bold text-gray-900">{isLoading ? '—' : value}</p>
+                <p className="text-[10px] text-gray-400">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Link
+          to="/providers"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+          style={{ background: 'var(--color-primary)' }}
+        >
+          <ArrowUpRight size={13} /> Ders Al
+        </Link>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 p-1 bg-white rounded-2xl border border-gray-100 shadow-sm w-fit">
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+              filter === key ? 'text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+            style={filter === key ? { background: 'var(--color-primary)' } : {}}
+          >
+            {label}
+            {counts[key] > 0 && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                filter === key ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {counts[key]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
       {isLoading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-36 bg-white rounded-2xl border border-gray-100 animate-pulse" />
-          ))}
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <div key={i} className="h-32 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
         </div>
-      ) : bookings.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'var(--color-primary-light, #ede9fe)' }}
-          >
-            <CalendarDays size={28} style={{ color: 'var(--color-primary)' }} />
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-primary-light)' }}>
+            <CalendarDays size={20} style={{ color: 'var(--color-primary)' }} />
           </div>
-          <p className="font-semibold text-gray-700 mb-1">Henüz rezervasyonunuz yok</p>
-          <p className="text-sm text-gray-400 mb-6">Bir öğretmen seçerek ilk dersinizi planlayın.</p>
-          <a
-            href="/providers"
-            className="inline-block px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-            style={{ background: 'var(--color-primary)' }}
-          >
-            Öğretmenleri Keşfet
-          </a>
+          <p className="text-sm font-semibold text-gray-700 mb-1">
+            {filter === 'all' ? 'Henüz rezervasyonunuz yok' : 'Bu filtrede ders yok'}
+          </p>
+          <p className="text-xs text-gray-400 mb-5">
+            {filter === 'all' ? 'Bir öğretmen seçerek ilk dersinizi planlayın.' : 'Farklı bir filtre deneyin.'}
+          </p>
+          {filter === 'all' && (
+            <Link
+              to="/providers"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              <ArrowUpRight size={14} /> Ders Al
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {bookings.map((b) => <BookingCard key={b.id} booking={b} />)}
+        <div className="space-y-3">
+          {filtered.map((b) => <BookingCard key={b.id} booking={b} />)}
         </div>
       )}
     </div>

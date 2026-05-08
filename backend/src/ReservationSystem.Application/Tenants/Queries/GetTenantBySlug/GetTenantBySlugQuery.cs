@@ -19,7 +19,11 @@ public record TenantSettingsDto(
     string TimeZone,
     string? PrimaryColor,
     string? LogoUrl,
-    int CancellationWindowHours);
+    int CancellationWindowHours,
+    string? CustomTagline,
+    string? City,
+    bool OffersInPerson,
+    bool OffersOnline);
 
 public class GetTenantBySlugQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetTenantBySlugQuery, TenantDto>
@@ -42,6 +46,10 @@ public class GetTenantBySlugQueryHandler(IApplicationDbContext db)
                 tenant.Settings.TimeZone,
                 tenant.Settings.PrimaryColor,
                 tenant.Settings.LogoUrl,
-                tenant.Settings.CancellationWindowHours));
+                tenant.Settings.CancellationWindowHours,
+                tenant.Settings.CustomTagline,
+                tenant.Settings.City,
+                tenant.Settings.OffersInPerson,
+                tenant.Settings.OffersOnline));
     }
 }
