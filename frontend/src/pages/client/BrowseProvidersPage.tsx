@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { Star, GraduationCap, Search, X } from 'lucide-react'
+import { GraduationCap, Search, X } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import type { ProviderSummary } from '@/types/provider.types'
 import { useTenantStore } from '@/store/tenant.store'
@@ -35,21 +35,6 @@ function ProviderCard({ provider }: { provider: ProviderSummary }) {
             <p className="font-bold text-gray-900 group-hover:text-[var(--color-primary)] transition-colors leading-tight">
               {provider.fullName}
             </p>
-            {provider.totalReviews > 0 ? (
-              <div className="flex items-center gap-1 mt-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={11}
-                    className={i < Math.round(provider.averageRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}
-                  />
-                ))}
-                <span className="text-xs font-semibold text-gray-700 ml-0.5">{provider.averageRating.toFixed(1)}</span>
-                <span className="text-xs text-gray-400">({provider.totalReviews})</span>
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400 mt-0.5">Yeni öğretmen</p>
-            )}
           </div>
           {provider.hourlyRate && (
             <div className="flex-shrink-0 text-right">

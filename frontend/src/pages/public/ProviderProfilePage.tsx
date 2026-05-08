@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
-import { Clock, Star, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2 } from 'lucide-react'
+import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2 } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -334,15 +334,6 @@ export default function ProviderProfilePage() {
                 <Avatar name={provider.fullName} avatarUrl={provider.avatarUrl} size={96} />
                 <div className="flex-1 min-w-0 pb-1">
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">{provider.fullName}</h1>
-                  {provider.totalReviews > 0 ? (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Star size={14} className="text-amber-400 fill-amber-400" />
-                      <span className="text-sm font-semibold text-gray-800">{provider.averageRating.toFixed(1)}</span>
-                      <span className="text-sm text-gray-400">({provider.totalReviews} değerlendirme)</span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400 mt-1">Henüz değerlendirme yok</p>
-                  )}
                 </div>
                 {provider.hourlyRate && (
                   <div className="hidden sm:block text-right flex-shrink-0 pb-1">

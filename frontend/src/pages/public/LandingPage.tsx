@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Star, CalendarCheck, BookOpen, Award, ChevronDown, ChevronUp,
+  CalendarCheck, BookOpen, Award, ChevronDown, ChevronUp,
   MapPin, Monitor, Shield, Heart, Target, TrendingUp, Video, Zap,
   BadgeCheck, Users,
 } from 'lucide-react'
@@ -204,13 +204,6 @@ export default function LandingPage() {
                   </div>
                   <h2 className="text-lg font-bold text-gray-900">{provider.fullName}</h2>
                   <p className="text-sm text-gray-500 mb-1">{cfg.heroProviderTitle}</p>
-                  {provider.totalReviews > 0 && (
-                    <div className="flex items-center justify-center gap-1 mb-3">
-                      <Star size={13} className="text-amber-400 fill-amber-400" />
-                      <span className="text-sm font-semibold text-gray-700">{provider.averageRating.toFixed(1)}</span>
-                      <span className="text-xs text-gray-400">({provider.totalReviews} yorum)</span>
-                    </div>
-                  )}
                   {bioText && (
                     <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4">{bioText}</p>
                   )}
@@ -361,49 +354,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Reviews ─────────────────────────────────────────────────────────── */}
-      <section id="yorumlar" className="py-16 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
-              {cfg.clientLabel.charAt(0).toUpperCase() + cfg.clientLabel.slice(1)} Yorumları
-            </h2>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} size={15} className="text-amber-400 fill-amber-400" />
-                ))}
-              </div>
-              <span className="font-semibold text-gray-700">5.0</span>
-              <span>· {cfg.testimonials.length} değerlendirme</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cfg.testimonials.map((r) => (
-              <div key={r.name} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star key={i} size={13} className="text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                <p className="text-sm text-gray-600 leading-relaxed flex-1">"{r.text}"</p>
-                <div className="flex items-center gap-3 pt-2 border-t border-gray-50">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                    style={{ background: 'var(--color-primary)' }}
-                  >
-                    {r.avatar}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{r.name}</p>
-                    <p className="text-xs text-gray-400">{r.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── How it works ────────────────────────────────────────────────────── */}
       <section id="nasil-calisir" className="py-16 px-4 bg-gray-50">
