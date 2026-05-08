@@ -194,6 +194,7 @@ export default function AvailabilityPage() {
         {[0, 1, 2, 3, 4, 5, 6].map((dow) => {
           const active = isActive(dow)
           const isToday = dow === TODAY_DOW
+          const isPast = dow < TODAY_DOW
           const date = WEEK_DATES[dow]
           return (
             <button
@@ -202,8 +203,12 @@ export default function AvailabilityPage() {
               onClick={() => toggleDay(dow)}
               className="flex flex-col items-center gap-0.5 py-2 rounded-xl text-xs font-semibold transition-all"
               style={
-                active
+                active && !isPast
                   ? { background: 'var(--color-primary)', color: '#fff' }
+                  : active && isPast
+                  ? { background: 'var(--color-primary)', color: '#fff', opacity: 0.45 }
+                  : isPast
+                  ? { background: '#f3f4f6', color: '#d1d5db' }
                   : { background: '#f3f4f6', color: '#9ca3af' }
               }
             >
@@ -224,6 +229,7 @@ export default function AvailabilityPage() {
       <div className="space-y-2">
         {DAYS.map((day, i) => {
           const active = isActive(i)
+          const isPast = i < TODAY_DOW
           const ranges = dayRanges[i]
           const hours = totalHoursForDay(ranges)
 
@@ -231,11 +237,12 @@ export default function AvailabilityPage() {
             <div
               key={day}
               className="bg-white rounded-2xl border transition-all overflow-hidden"
-              style={
-                active
+              style={{
+                opacity: isPast ? 0.5 : 1,
+                ...(active
                   ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 3px var(--color-primary-light)' }
-                  : { borderColor: '#f3f4f6' }
-              }
+                  : { borderColor: '#f3f4f6' }),
+              }}
             >
               {/* Day header */}
               <div className="flex items-center gap-4 px-5 py-3.5">
