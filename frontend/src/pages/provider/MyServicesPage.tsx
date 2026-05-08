@@ -10,31 +10,6 @@ function toHHMM(totalMinutes: number): string {
   return h > 0 ? `${h}s ${m > 0 ? m + 'dk' : ''}`.trim() : `${m}dk`
 }
 
-function parseHHMM(raw: string): number | null {
-  const match = raw.trim().match(/^(\d+):([0-5]\d)$/)
-  if (!match) return null
-  const total = parseInt(match[1]) * 60 + parseInt(match[2])
-  return total > 0 ? total : null
-}
-
-function DurationInput({ value, onChange, className }: { value: number; onChange: (m: number) => void; className?: string }) {
-  const fmt = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
-  const [raw, setRaw] = useState(fmt(value))
-  return (
-    <input
-      type="text"
-      value={raw}
-      onChange={(e) => setRaw(e.target.value)}
-      onBlur={() => {
-        const p = parseHHMM(raw)
-        if (p) { onChange(p); setRaw(fmt(p)) } else setRaw(fmt(value))
-      }}
-      placeholder="1:30"
-      className={className}
-    />
-  )
-}
-
 interface ServiceForm {
   name: string; description: string; durationMinutes: number
   price: number; currency: string; sessionType: 'Individual' | 'Group'; maxParticipants: number | null
@@ -110,8 +85,16 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
         {/* Duration + Price */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Süre (sa:dk)</label>
-            <DurationInput value={form.durationMinutes} onChange={(m) => set({ durationMinutes: m })} className={inputCls} />
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Süre (dakika)</label>
+            <input
+              type="number"
+              min={5}
+              max={480}
+              value={form.durationMinutes}
+              onChange={(e) => set({ durationMinutes: parseInt(e.target.value) || 60 })}
+              placeholder="50"
+              className={inputCls}
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ücret (₺) *</label>
