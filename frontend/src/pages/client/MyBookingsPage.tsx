@@ -34,14 +34,16 @@ function fmtFull(utc: string) {
 function BookingCard({ booking }: { booking: Booking }) {
   const qc = useQueryClient()
   const [confirming, setConfirming] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
   const cfg = STATUS_CFG[booking.status]
   const { day, time } = fmtFull(booking.startUtc)
   const canCancel = booking.status === 'Pending' || booking.status === 'Confirmed'
+  const withinWindow = new Date(booking.startUtc) <= new Date(Date.now() + 24 * 60 * 60 * 1000)
   const initials = booking.providerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
 
   const cancelMutation = useMutation({
-    mutationFn: () => bookingsApi.cancel(booking.id),
-    onSuccess: () => { setConfirming(false); qc.invalidateQueries({ queryKey: ['myBookings'] }) },
+    mutationFn: () => bookingsApi.cancel(booking.id, cancelReason.trim() || undefined),
+    onSuccess: () => { setConfirming(false); setCancelReason(''); qc.invalidateQueries({ queryKey: ['myBookings'] }) },
     onError: () => setConfirming(false),
   })
 
@@ -89,22 +91,35 @@ function BookingCard({ booking }: { booking: Booking }) {
             {canCancel && (
               <div className="mt-3">
                 {confirming ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Dersi iptal etmek istiyor musunuz?</span>
-                    <button
-                      onClick={() => cancelMutation.mutate()}
-                      disabled={cancelMutation.isPending}
-                      className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
-                    >
-                      {cancelMutation.isPending ? '…' : 'Evet, İptal Et'}
-                    </button>
-                    <button
-                      onClick={() => setConfirming(false)}
-                      className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
-                    >
-                      Vazgeç
-                    </button>
+                  <div className="space-y-2">
+                    <textarea
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="İptal nedeninizi yazabilirsiniz (isteğe bağlı)"
+                      rows={2}
+                      className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:border-transparent placeholder-gray-400"
+                      style={{ '--tw-ring-color': 'var(--color-primary)' } as any}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => cancelMutation.mutate()}
+                        disabled={cancelMutation.isPending}
+                        className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
+                      >
+                        {cancelMutation.isPending ? '…' : 'İptal Et'}
+                      </button>
+                      <button
+                        onClick={() => { setConfirming(false); setCancelReason('') }}
+                        className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
                   </div>
+                ) : withinWindow ? (
+                  <p className="text-xs text-gray-400 italic">
+                    Derse 24 saatten az kaldığı için iptal yapılamaz.
+                  </p>
                 ) : (
                   <button
                     onClick={() => setConfirming(true)}
