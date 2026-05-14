@@ -63,7 +63,7 @@ services:
     volumes:
       - uploads_data:/app/wwwroot/uploads
     ports:
-      - "5000:8080"
+      - "5005:8080"
     depends_on:
       postgres:
         condition: service_healthy
