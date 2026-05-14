@@ -4,7 +4,7 @@
       "Bash(docker compose:*)",
       "Bash(dotnet ef:*)",
       "Bash(npx tsc *)",
-      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:5000/health\" -Method Get 2>&1)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:5005/health\" -Method Get 2>&1)",
       "Bash(dotnet build *)",
       "Bash(docker-compose build *)",
       "Bash(docker-compose up *)",

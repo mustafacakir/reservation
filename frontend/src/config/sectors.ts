@@ -75,7 +75,7 @@ const education: SectorConfig = {
   label: 'Özel Ders',
   emoji: '📚',
   heroTitle: 'Uzman öğretmenle birebir ders al',
-  heroSubtitle: 'Alanında deneyimli öğretmenlerle online veya yüz yüze ders rezervasyonu yap.',
+  heroSubtitle: 'Sevdiğin matematik öğretmeniyle kolayca ders rezervasyonu yap.',
   heroSearchPlaceholder: 'Öğretmen ara…',
   browseLabel: 'Öğretmenleri Gör',
   providerLabel: 'öğretmen',
