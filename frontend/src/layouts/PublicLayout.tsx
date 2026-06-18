@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
@@ -15,6 +15,8 @@ export default function PublicLayout() {
   const sectorCfg = getSectorConfig(sector)
 
   const isFullBleed = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')
+
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
 
   const dashboardPath = role === 'ServiceProvider' ? '/provider'
     : role === 'Admin' || role === 'SuperAdmin' ? '/admin' : '/client/profile'
@@ -177,8 +179,11 @@ export default function PublicLayout() {
                 </ul>
               </div>
             </div>
-            <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
               <p>© {new Date().getFullYear()} sevdailematematik². Tüm hakları saklıdır.</p>
+              <a href="https://pekinteknoloji.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors font-medium">
+                Bu site Pekin Teknoloji tarafından hazırlanmıştır.
+              </a>
               <p>Yeni Selanik Pasajı No:3/6, Beyoğlu / İstanbul</p>
             </div>
           </div>

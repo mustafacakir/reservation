@@ -457,14 +457,18 @@ export default function LandingPage() {
               <div>
                 <h4 className="text-white font-semibold text-sm mb-3">İletişim</h4>
                 <ul className="space-y-2 text-sm">
+                  <li><Link to="/iletisim" className="hover:text-white transition-colors">İletişim Sayfası</Link></li>
                   <li><a href="mailto:destek@sevdailematematik.com" className="hover:text-white transition-colors">destek@sevdailematematik.com</a></li>
                   <li><a href="tel:+905415740545" className="hover:text-white transition-colors">0541 574 05 45</a></li>
                 </ul>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+          <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
             <span>© {new Date().getFullYear()} · Tüm hakları saklıdır.</span>
+            <a href="https://pekinteknoloji.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors font-medium">
+              Bu site Pekin Teknoloji tarafından hazırlanmıştır.
+            </a>
             <span className="flex items-center gap-1.5"><MapPin size={11} /> Yeni Selanik Pasajı No:3/6, Beyoğlu / İstanbul</span>
           </div>
         </div>
