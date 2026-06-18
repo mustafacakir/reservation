@@ -164,6 +164,13 @@ export default function PublicLayout() {
               </div>
               <div className="flex gap-12">
                 <div>
+                  <h4 className="text-white font-semibold text-sm mb-3">Hızlı Erişim</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><Link to="/providers" className="hover:text-white transition-colors">Rezervasyon Yap</Link></li>
+                    <li><Link to="/login" className="hover:text-white transition-colors">Giriş Yap</Link></li>
+                  </ul>
+                </div>
+                <div>
                   <h4 className="text-white font-semibold text-sm mb-3">Yasal</h4>
                   <ul className="space-y-2 text-sm">
                     <li><Link to="/kvkk" className="hover:text-white transition-colors">KVKK</Link></li>
