@@ -76,35 +76,65 @@ function SlotPicker({
     if (!q.isLoading) availabilityMap[formatDateParam(d)] = (q.data?.length ?? 0) > 0
   })
 
+  // Build Monday-first calendar grid covering the 14-day range
+  const toMonFirst = (day: number) => (day + 6) % 7
+  const gridStart = new Date(days[0])
+  gridStart.setDate(gridStart.getDate() - toMonFirst(days[0].getDay()))
+  const gridEnd = new Date(days[days.length - 1])
+  gridEnd.setDate(gridEnd.getDate() + (6 - toMonFirst(days[days.length - 1].getDay())))
+  const gridCells: Date[] = []
+  for (const cur = new Date(gridStart); cur <= gridEnd; cur.setDate(cur.getDate() + 1)) {
+    gridCells.push(new Date(cur))
+  }
+  const daySet = new Set(days.map((d) => formatDateParam(d)))
+
+  const monthLabel = (() => {
+    const a = days[0], b = days[days.length - 1]
+    if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear())
+      return a.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+    return `${a.toLocaleDateString('tr-TR', { month: 'long' })} – ${b.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`
+  })()
+
   return (
     <div>
-      {/* Date strip */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 -mx-1 px-1">
-        {days.map((d) => {
-          const dateStr = formatDateParam(d)
-          const active = dateStr === activeDateStr
-          const hasSlots = availabilityMap[dateStr]
-          const loadingDay = availabilityMap[dateStr] === undefined
-          const disabled = !loadingDay && hasSlots === false
+      {/* Month label */}
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{monthLabel}</p>
 
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1 mb-4">
+        {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((h) => (
+          <div key={h} className="text-center text-[10px] font-semibold text-gray-400 pb-1">{h}</div>
+        ))}
+        {gridCells.map((cell) => {
+          const ds = formatDateParam(cell)
+          const inRange = daySet.has(ds)
+          if (!inRange) {
+            return (
+              <div key={ds} className="flex items-center justify-center h-9">
+                <span className="text-xs text-gray-200">{cell.getDate()}</span>
+              </div>
+            )
+          }
+          const active = ds === activeDateStr
+          const hasSlots = availabilityMap[ds]
+          const loadingDay = availabilityMap[ds] === undefined
+          const disabled = !loadingDay && hasSlots === false
           return (
             <button
-              key={dateStr}
+              key={ds}
               disabled={disabled}
-              onClick={() => { setActiveDay(d); onSelect('', '') }}
+              onClick={() => { setActiveDay(cell); onSelect('', '') }}
               className={[
-                'flex-shrink-0 flex flex-col items-center w-12 py-2 rounded-xl text-xs font-medium transition-all',
+                'flex flex-col items-center justify-center h-9 rounded-xl text-xs font-semibold transition-all',
                 active ? 'text-white shadow-sm' : disabled
-                  ? 'text-gray-300 bg-gray-50 cursor-not-allowed opacity-50'
-                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100',
+                  ? 'text-gray-300 cursor-not-allowed opacity-40'
+                  : 'text-gray-700 hover:bg-gray-100',
               ].join(' ')}
               style={active ? { background: 'var(--color-primary)' } : {}}
             >
-              <span className="text-[9px] uppercase tracking-wider opacity-75">{WEEKDAYS[d.getDay()]}</span>
-              <span className="text-base font-bold leading-tight mt-0.5">{d.getDate()}</span>
-              <span className="text-[9px] opacity-60">{MONTHS[d.getMonth()]}</span>
+              <span>{cell.getDate()}</span>
               {!disabled && !active && !loadingDay && (
-                <span className="w-1 h-1 rounded-full mt-1" style={{ background: 'var(--color-primary)' }} />
+                <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: 'var(--color-primary)' }} />
               )}
             </button>
           )
@@ -112,62 +142,57 @@ function SlotPicker({
       </div>
 
       {/* Time slots */}
-      {isLoading ? (
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-10 rounded-xl bg-gray-100 animate-pulse" />
-          ))}
-        </div>
-      ) : slots.length === 0 ? (
-        <div className="py-6 text-center">
-          <CalendarDays size={24} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">Bu gün için müsait saat yok</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {slots.map((slot) => {
-            const selected = slot.startUtc === selectedSlotStart
-            const label = `${slot.startLocal} – ${slot.endLocal}`
-            const full = slot.isFull
-
-            return (
-              <button
-                key={slot.startUtc}
-                onClick={() => !full && onSelect(slot.startUtc, label)}
-                disabled={full}
-                className={[
-                  'py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-0.5',
-                  full
-                    ? 'text-gray-400 border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
-                    : selected
-                      ? 'text-white border-transparent shadow-sm'
+      <div className="border-t border-gray-100 pt-4">
+        {isLoading ? (
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-10 rounded-xl bg-gray-100 animate-pulse" />
+            ))}
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="py-6 text-center">
+            <CalendarDays size={24} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Bu gün için müsait saat yok</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {slots.map((slot) => {
+              const selected = slot.startUtc === selectedSlotStart
+              const label = `${slot.startLocal} – ${slot.endLocal}`
+              const full = slot.isFull
+              return (
+                <button
+                  key={slot.startUtc}
+                  onClick={() => !full && onSelect(slot.startUtc, label)}
+                  disabled={full}
+                  className={[
+                    'py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-0.5',
+                    full ? 'text-gray-400 border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
+                      : selected ? 'text-white border-transparent shadow-sm'
                       : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
-                ].join(' ')}
-                style={selected && !full ? { background: 'var(--color-primary)' } : {}}
-              >
-                <span>{slot.startLocal}</span>
-                {slot.isGroup && slot.maxParticipants && (
-                  <span
-                    className="text-[9px] font-bold px-1 rounded"
-                    style={full
-                      ? { background: '#fee2e2', color: '#dc2626' }
-                      : selected
-                        ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
-                        : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
-                    }
-                  >
-                    {full ? 'DOLU' : `${slot.currentParticipants}/${slot.maxParticipants}`}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
-        <Clock size={11} /> Her ders {durationMinutes} dakika
-      </p>
+                  ].join(' ')}
+                  style={selected && !full ? { background: 'var(--color-primary)' } : {}}
+                >
+                  <span>{slot.startLocal}</span>
+                  {slot.isGroup && slot.maxParticipants && (
+                    <span
+                      className="text-[9px] font-bold px-1 rounded"
+                      style={full ? { background: '#fee2e2', color: '#dc2626' }
+                        : selected ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
+                        : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                    >
+                      {full ? 'DOLU' : `${slot.currentParticipants}/${slot.maxParticipants}`}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
+          <Clock size={11} /> Her ders {durationMinutes} dakika
+        </p>
+      </div>
     </div>
   )
 }

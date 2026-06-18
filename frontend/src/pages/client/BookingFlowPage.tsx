@@ -53,12 +53,45 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
     if (!q.isLoading) avail[toParam(d)] = (q.data?.length ?? 0) > 0
   })
 
+  // Build Monday-first calendar grid covering the 14-day range
+  const toMonFirst = (day: number) => (day + 6) % 7
+  const gridStart = new Date(days[0])
+  gridStart.setDate(gridStart.getDate() - toMonFirst(days[0].getDay()))
+  const gridEnd = new Date(days[days.length - 1])
+  gridEnd.setDate(gridEnd.getDate() + (6 - toMonFirst(days[days.length - 1].getDay())))
+  const gridCells: Date[] = []
+  for (const cur = new Date(gridStart); cur <= gridEnd; cur.setDate(cur.getDate() + 1)) {
+    gridCells.push(new Date(cur))
+  }
+  const daySet = new Set(days.map((d) => toParam(d)))
+
+  const monthLabel = (() => {
+    const a = days[0], b = days[days.length - 1]
+    const af = a.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+    if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()) return af
+    return `${a.toLocaleDateString('tr-TR', { month: 'long' })} – ${b.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`
+  })()
+
   return (
     <div>
-      {/* Date strip */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-        {days.map((d) => {
-          const ds = toParam(d)
+      {/* Month label */}
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{monthLabel}</p>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1 mb-4">
+        {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((h) => (
+          <div key={h} className="text-center text-[10px] font-semibold text-gray-400 pb-1">{h}</div>
+        ))}
+        {gridCells.map((cell) => {
+          const ds = toParam(cell)
+          const inRange = daySet.has(ds)
+          if (!inRange) {
+            return (
+              <div key={ds} className="flex items-center justify-center h-9">
+                <span className="text-xs text-gray-200">{cell.getDate()}</span>
+              </div>
+            )
+          }
           const active = ds === activeDateStr
           const hasSlots = avail[ds]
           const loadingDay = avail[ds] === undefined
@@ -67,18 +100,16 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
             <button
               key={ds}
               disabled={disabled}
-              onClick={() => { setActiveDay(d); onSelect('', '') }}
-              className={['flex-shrink-0 flex flex-col items-center w-12 py-2 rounded-xl text-xs font-medium transition-all',
+              onClick={() => { setActiveDay(cell); onSelect('', '') }}
+              className={['flex flex-col items-center justify-center h-9 rounded-xl text-xs font-semibold transition-all',
                 active ? 'text-white shadow-sm' : disabled
-                  ? 'text-gray-300 bg-gray-50 cursor-not-allowed opacity-40'
-                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100'].join(' ')}
+                  ? 'text-gray-300 cursor-not-allowed opacity-40'
+                  : 'text-gray-700 hover:bg-gray-100'].join(' ')}
               style={active ? { background: 'var(--color-primary)' } : {}}
             >
-              <span className="text-[9px] uppercase tracking-wider opacity-75">{WD[d.getDay()]}</span>
-              <span className="text-base font-bold leading-tight mt-0.5">{d.getDate()}</span>
-              <span className="text-[9px] opacity-60">{MON[d.getMonth()]}</span>
+              <span>{cell.getDate()}</span>
               {!disabled && !active && !loadingDay && (
-                <span className="w-1 h-1 rounded-full mt-1" style={{ background: 'var(--color-primary)' }} />
+                <span className="w-1 h-1 rounded-full mt-0.5" style={{ background: 'var(--color-primary)' }} />
               )}
             </button>
           )
@@ -86,7 +117,7 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
       </div>
 
       {/* Slots */}
-      <div className="mt-4">
+      <div className="border-t border-gray-100 pt-4">
         {loading ? (
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />)}
