@@ -22,8 +22,6 @@ function formatDateParam(d: Date) {
   return d.toISOString().split('T')[0]
 }
 
-const WEEKDAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
-const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
