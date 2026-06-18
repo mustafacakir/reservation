@@ -17,9 +17,11 @@ public class PaymentsController(
     IIyzicoPaymentService iyzicoService,
     IPendingPaymentStore pendingStore,
     PayTrPaymentService payTrService,
+    KuveytTurkPaymentService kuveytTurkService,
     IDistributedCache cache,
     IOptions<IyzicoOptions> iyzicoOpts,
-    IOptions<PayTrOptions> payTrOpts) : ControllerBase
+    IOptions<PayTrOptions> payTrOpts,
+    IOptions<KuveytTurkOptions> kuveytTurkOpts) : ControllerBase
 {
     // ── Initialize (PayTR by default) ──────────────────────────────────────────
 
@@ -129,5 +131,43 @@ public class PaymentsController(
         }
 
         return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme işlemi zaman aşımına uğradı, lütfen derslerinizi kontrol edin.")}");
+    }
+
+    // ── KuveytTürk 3D Secure callback (OkUrl — browser POST after successful 3DS) ──
+
+    [HttpPost("kuveytturk/callback")]
+    [AllowAnonymous]
+    public async Task<IActionResult> KuveytTurkCallback(CancellationToken ct)
+    {
+        var frontendUrl = kuveytTurkOpts.Value.FrontendBaseUrl;
+        try
+        {
+            var (success, merchantOrderId, error) =
+                await kuveytTurkService.HandleCallbackAsync(Request.Form, ct);
+
+            if (!success)
+                return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString(error ?? "Ödeme başarısız")}");
+
+            var pending = await pendingStore.RetrieveAsync(merchantOrderId!, ct);
+            if (pending is null)
+                return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme bilgisi bulunamadı")}");
+
+            var bookingId = await mediator.Send(new CreateBookingFromPaymentCommand(pending), ct);
+            return Redirect($"{frontendUrl}/client/payment-result?success=true&bookingId={bookingId}");
+        }
+        catch (Exception ex)
+        {
+            return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString(ex.Message)}");
+        }
+    }
+
+    // ── KuveytTürk FailUrl (browser POST after failed/cancelled 3DS) ──────────
+
+    [HttpPost("kuveytturk/fail")]
+    [AllowAnonymous]
+    public IActionResult KuveytTurkFail()
+    {
+        var frontendUrl = kuveytTurkOpts.Value.FrontendBaseUrl;
+        return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme iptal edildi veya başarısız oldu")}");
     }
 }

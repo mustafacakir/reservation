@@ -448,15 +448,24 @@ export default function LandingPage() {
                 <h4 className="text-white font-semibold text-sm mb-3">Yasal</h4>
                 <ul className="space-y-2 text-sm">
                   <li><Link to="/kvkk" className="hover:text-white transition-colors">KVKK</Link></li>
-                  <li><Link to="/gizlilik" className="hover:text-white transition-colors">Gizlilik</Link></li>
+                  <li><Link to="/gizlilik" className="hover:text-white transition-colors">Gizlilik Politikası</Link></li>
                   <li><Link to="/kullanim-kosullari" className="hover:text-white transition-colors">Kullanım Koşulları</Link></li>
+                  <li><Link to="/iptal-iade" className="hover:text-white transition-colors">İptal ve İade</Link></li>
+                  <li><Link to="/mesafeli-satis-sozlesmesi" className="hover:text-white transition-colors">Mesafeli Satış Sözleşmesi</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-white font-semibold text-sm mb-3">İletişim</h4>
+                <ul className="space-y-2 text-sm">
+                  <li><Link to="/iletisim" className="hover:text-white transition-colors">İletişim</Link></li>
+                  <li><a href="mailto:destek@sevdailematematik.com" className="hover:text-white transition-colors">destek@sevdailematematik.com</a></li>
                 </ul>
               </div>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
             <span>© {new Date().getFullYear()} · Tüm hakları saklıdır.</span>
-            <span className="flex items-center gap-1.5"><MapPin size={11} /> İstanbul, Türkiye</span>
+            <span className="flex items-center gap-1.5"><MapPin size={11} /> Yeni Selanik Pasajı No:3/6, Beyoğlu / İstanbul</span>
           </div>
         </div>
       </footer>

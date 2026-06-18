@@ -14,7 +14,7 @@ export default function GizlilikPolitikasiPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Toplanan Veriler</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>Ad, soyad ve e-posta adresi (hesap oluşturma)</li>
-            <li>Ödeme bilgileri (iyzico altyapısı üzerinden, kart verileri tarafımızca saklanmaz)</li>
+            <li>Ödeme bilgileri (KuveytTürk Sanal POS altyapısı üzerinden, kart verileri tarafımızca saklanmaz)</li>
             <li>Rezervasyon geçmişi ve ders notları</li>
             <li>Profil fotoğrafı (isteğe bağlı)</li>
             <li>IP adresi ve oturum verileri</li>
@@ -34,12 +34,12 @@ export default function GizlilikPolitikasiPage() {
 
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">4. Verilerin Paylaşımı</h2>
-          <p>Kişisel verileriniz; ödeme altyapısı sağlayıcısı iyzico, yasal zorunluluk durumlarında yetkili kamu kurumları ve hizmetin sunulması için zorunlu teknik altyapı sağlayıcıları dışında üçüncü taraflarla paylaşılmaz.</p>
+          <p>Kişisel verileriniz; ödeme altyapısı sağlayıcısı KuveytTürk Bankası, yasal zorunluluk durumlarında yetkili kamu kurumları ve hizmetin sunulması için zorunlu teknik altyapı sağlayıcıları dışında üçüncü taraflarla paylaşılmaz.</p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">5. Veri Güvenliği</h2>
-          <p>Verileriniz TLS/SSL şifrelemesi ile korunmaktadır. Şifreler tek yönlü hash algoritması ile saklanır. Kart bilgileri sistemimizde tutulmaz; ödeme işlemleri iyzico'nun PCI-DSS sertifikalı altyapısı üzerinden gerçekleştirilir.</p>
+          <p>Verileriniz TLS/SSL şifrelemesi ile korunmaktadır. Şifreler tek yönlü hash algoritması ile saklanır. Kart bilgileri sistemimizde tutulmaz; ödeme işlemleri KuveytTürk Bankası'nın 3D Secure ve PCI-DSS uyumlu altyapısı üzerinden gerçekleştirilir.</p>
         </section>
 
         <section>

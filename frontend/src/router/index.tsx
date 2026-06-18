@@ -13,6 +13,9 @@ import ProviderProfilePage from '@/pages/public/ProviderProfilePage'
 import GizlilikPolitikasiPage from '@/pages/public/GizlilikPolitikasiPage'
 import KullanımKosullariPage from '@/pages/public/KullanımKosullariPage'
 import KvkkPage from '@/pages/public/KvkkPage'
+import IptalIadePolitikasiPage from '@/pages/public/IptalIadePolitikasiPage'
+import MesafeliSatisSozlesmesiPage from '@/pages/public/MesafeliSatisSozlesmesiPage'
+import IletisimPage from '@/pages/public/IletisimPage'
 
 // Client pages
 import BrowseProvidersPage from '@/pages/client/BrowseProvidersPage'
@@ -47,6 +50,9 @@ export const router = createBrowserRouter([
       { path: 'gizlilik', element: <GizlilikPolitikasiPage /> },
       { path: 'kullanim-kosullari', element: <KullanımKosullariPage /> },
       { path: 'kvkk', element: <KvkkPage /> },
+      { path: 'iptal-iade', element: <IptalIadePolitikasiPage /> },
+      { path: 'mesafeli-satis-sozlesmesi', element: <MesafeliSatisSozlesmesiPage /> },
+      { path: 'iletisim', element: <IletisimPage /> },
     ],
   },
   {

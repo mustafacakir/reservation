@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle } from 'lucide-react'
@@ -176,6 +176,52 @@ function PayTrCheckout({ iframeToken, onBack }: { iframeToken: string; onBack: (
   )
 }
 
+// ── KuveytTürk 3D Secure redirect view ───────────────────────────────────────
+
+function KuveytTurkCheckout({ formContent }: { formContent: string }) {
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const parsed = useMemo(() => {
+    const doc = new DOMParser().parseFromString(formContent, 'text/html')
+    const src = doc.querySelector('form')
+    if (!src) return null
+    return {
+      action: src.getAttribute('action') ?? '',
+      method: src.getAttribute('method') ?? 'POST',
+      fields: Array.from(src.querySelectorAll('input')).map((inp) => ({
+        name: (inp as HTMLInputElement).name,
+        value: (inp as HTMLInputElement).value,
+      })),
+    }
+  }, [formContent])
+
+  useEffect(() => {
+    if (parsed) formRef.current?.submit()
+  }, [parsed])
+
+  if (!parsed) return null
+
+  return (
+    <>
+      <div className="max-w-lg mx-auto py-20 text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'var(--color-primary-light)' }}>
+          <ShieldCheck size={26} style={{ color: 'var(--color-primary)' }} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Güvenli Ödeme Sayfasına Yönlendiriliyorsunuz</h2>
+        <p className="text-sm text-gray-500">KuveytTürk 3D Secure ödeme sayfası yükleniyor…</p>
+        <div className="flex justify-center">
+          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+        </div>
+      </div>
+      <form ref={formRef} method={parsed.method} action={parsed.action} style={{ display: 'none' }}>
+        {parsed.fields.map((f, i) => (
+          <input key={i} type="hidden" name={f.name} value={f.value} readOnly />
+        ))}
+      </form>
+    </>
+  )
+}
+
 // ── iyzico form view (legacy) ─────────────────────────────────────────────────
 
 function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: () => void }) {
@@ -215,6 +261,7 @@ function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: 
 type PaymentState =
   | { type: 'none' }
   | { type: 'paytr'; iframeToken: string }
+  | { type: 'kuveytturk'; formContent: string }
   | { type: 'iyzico'; formContent: string }
 
 export default function BookingFlowPage() {
@@ -246,6 +293,8 @@ export default function BookingFlowPage() {
     onSuccess: (data) => {
       if (data.gatewayType === 'PayTr' && data.iframeToken) {
         setPaymentState({ type: 'paytr', iframeToken: data.iframeToken })
+      } else if (data.gatewayType === 'KuveytTurk' && data.formContent) {
+        setPaymentState({ type: 'kuveytturk', formContent: data.formContent })
       } else if (data.formContent) {
         setPaymentState({ type: 'iyzico', formContent: data.formContent })
       }
@@ -266,6 +315,10 @@ export default function BookingFlowPage() {
 
   if (paymentState.type === 'paytr') {
     return <PayTrCheckout iframeToken={paymentState.iframeToken} onBack={() => setPaymentState({ type: 'none' })} />
+  }
+
+  if (paymentState.type === 'kuveytturk') {
+    return <KuveytTurkCheckout formContent={paymentState.formContent} />
   }
 
   if (paymentState.type === 'iyzico') {
@@ -390,8 +443,8 @@ export default function BookingFlowPage() {
               <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — PayTR</p>
-              <p className="text-xs text-gray-400">Kart bilgileriniz 256-bit SSL ile şifreli olarak işlenir.</p>
+              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — KuveytTürk 3D Secure</p>
+              <p className="text-xs text-gray-400">Kart bilgileriniz 3D Secure ve SSL ile güvence altındadır.</p>
             </div>
           </div>
 

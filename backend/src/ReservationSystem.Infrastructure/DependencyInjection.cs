@@ -47,9 +47,12 @@ public static class DependencyInjection
         services.AddScoped<IIyzicoPaymentService, IyzicoPaymentService>();
         services.Configure<PayTrOptions>(configuration.GetSection("PayTr"));
         services.AddScoped<PayTrPaymentService>();
-        services.AddScoped<IPaymentGateway, PayTrPaymentService>();
+        services.Configure<KuveytTurkOptions>(configuration.GetSection("KuveytTurk"));
+        services.AddScoped<KuveytTurkPaymentService>();
+        services.AddScoped<IPaymentGateway, KuveytTurkPaymentService>();
         services.AddScoped<IPendingPaymentStore, PendingPaymentStore>();
         services.AddHttpClient("PayTr");
+        services.AddHttpClient("KuveytTurk");
 
         // Email
         services.Configure<EmailSettings>(configuration.GetSection("Email"));

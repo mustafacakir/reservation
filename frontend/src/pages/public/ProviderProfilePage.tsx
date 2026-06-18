@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
 import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2 } from 'lucide-react'
@@ -172,6 +172,48 @@ function SlotPicker({
   )
 }
 
+// ── KuveytTürk full-page redirect ────────────────────────────────────────────
+
+function KuveytTurkRedirect({ formContent }: { formContent: string }) {
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const parsed = useMemo(() => {
+    const doc = new DOMParser().parseFromString(formContent, 'text/html')
+    const src = doc.querySelector('form')
+    if (!src) return null
+    return {
+      action: src.getAttribute('action') ?? '',
+      method: src.getAttribute('method') ?? 'POST',
+      fields: Array.from(src.querySelectorAll('input')).map((inp) => ({
+        name: (inp as HTMLInputElement).name,
+        value: (inp as HTMLInputElement).value,
+      })),
+    }
+  }, [formContent])
+
+  useEffect(() => {
+    if (parsed) formRef.current?.submit()
+  }, [parsed])
+
+  if (!parsed) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white gap-5">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
+        <ShieldCheck size={28} style={{ color: 'var(--color-primary)' }} />
+      </div>
+      <p className="text-lg font-bold text-gray-900">Güvenli Ödeme Sayfasına Yönlendiriliyorsunuz</p>
+      <p className="text-sm text-gray-500">KuveytTürk 3D Secure sayfası yükleniyor…</p>
+      <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+      <form ref={formRef} method={parsed.method} action={parsed.action} style={{ display: 'none' }}>
+        {parsed.fields.map((f, i) => (
+          <input key={i} type="hidden" name={f.name} value={f.value} readOnly />
+        ))}
+      </form>
+    </div>
+  )
+}
+
 // ── PayTR modal ───────────────────────────────────────────────────────────────
 
 function PayTrModal({ token, onClose }: { token: string; onClose: () => void }) {
@@ -215,6 +257,7 @@ export default function ProviderProfilePage() {
   const [selectedSlotLabel, setSelectedSlotLabel] = useState<string | null>(null)
   const [clientNotes, setClientNotes] = useState('')
   const [iframeToken, setIframeToken] = useState<string | null>(null)
+  const [ktFormContent, setKtFormContent] = useState<string | null>(null)
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', id, slug],
@@ -230,7 +273,9 @@ export default function ProviderProfilePage() {
         '/payments/initialize', data
       ).then(r => r.data),
     onSuccess: (data) => {
-      if (data.iframeToken) {
+      if (data.gatewayType === 'KuveytTurk' && (data as any).formContent) {
+        setKtFormContent((data as any).formContent)
+      } else if (data.iframeToken) {
         setIframeToken(data.iframeToken)
       }
     },
@@ -305,6 +350,7 @@ export default function ProviderProfilePage() {
 
   return (
     <div>
+      {ktFormContent && <KuveytTurkRedirect formContent={ktFormContent} />}
       {iframeToken && (
         <PayTrModal token={iframeToken} onClose={() => setIframeToken(null)} />
       )}
@@ -533,7 +579,7 @@ function BookingPanel({
 
         {slotReady && (
           <p className="text-center text-xs text-gray-400 mt-2 flex items-center justify-center gap-1">
-            <ShieldCheck size={11} /> Güvenli ödeme — PayTR
+            <ShieldCheck size={11} /> Güvenli ödeme — KuveytTürk 3D Secure
           </p>
         )}
       </div>

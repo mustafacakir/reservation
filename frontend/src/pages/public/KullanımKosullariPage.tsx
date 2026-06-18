@@ -22,7 +22,7 @@ export default function KullanımKosullariPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Rezervasyon ve Ödeme</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Rezervasyon tamamlandıktan sonra ödeme iyzico güvenli ödeme altyapısı üzerinden alınır.</li>
+            <li>Rezervasyon tamamlandıktan sonra ödeme KuveytTürk Bankası Sanal POS altyapısı üzerinden 3D Secure ile alınır.</li>
             <li>Öğretmen onayı ile rezervasyon kesinleşir.</li>
             <li>İptal koşulları: ders başlangıcından en az 24 saat önce yapılan iptal taleplerinde ücret iade edilir.</li>
             <li>24 saatten az kalan iptal taleplerinde ücret iadesi yapılmaz.</li>
