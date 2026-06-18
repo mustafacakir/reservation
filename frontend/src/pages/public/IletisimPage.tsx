@@ -64,7 +64,7 @@ export default function IletisimPage() {
           {[
             {
               q: 'Rezervasyonumu nasıl iptal edebilirim?',
-              a: 'Ders başlangıcından en az 24 saat önce destek@sevdailematematik.com adresine e-posta göndererek iptal talebinde bulunabilirsiniz.',
+              a: 'Ders başlangıcından en az 12 saat önce destek@sevdailematematik.com adresine e-posta göndererek iptal talebinde bulunabilirsiniz.',
             },
             {
               q: 'Ödeme güvenli mi?',

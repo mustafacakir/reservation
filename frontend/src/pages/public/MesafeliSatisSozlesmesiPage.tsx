@@ -79,7 +79,7 @@ export default function MesafeliSatisSozlesmesiPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">MADDE 7 — İPTAL VE İADE</h2>
           <p>
-            Ders başlangıcından en az <strong>24 saat önce</strong> yapılan iptal taleplerinde ödenen tutar tam olarak
+            Ders başlangıcından en az <strong>12 saat önce</strong> yapılan iptal taleplerinde ödenen tutar tam olarak
             iade edilir. Detaylı iptal koşulları için İptal ve İade Politikası sayfasını inceleyiniz.
           </p>
         </section>

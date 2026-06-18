@@ -149,6 +149,41 @@ export default function PublicLayout() {
           </div>
         )}
       </main>
+
+      {!isFullBleed && (
+        <footer className="bg-gray-900 text-gray-400 mt-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 mb-8">
+              <div>
+                <p className="text-white font-semibold text-sm mb-3">sevdailematematik²</p>
+                <p className="text-xs leading-relaxed">Online matematik dersi rezervasyon platformu.</p>
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm mb-3">Yasal</p>
+                <ul className="space-y-2 text-xs">
+                  <li><Link to="/gizlilik" className="hover:text-white transition-colors">Gizlilik Politikası</Link></li>
+                  <li><Link to="/kullanim-kosullari" className="hover:text-white transition-colors">Kullanım Koşulları</Link></li>
+                  <li><Link to="/kvkk" className="hover:text-white transition-colors">KVKK Aydınlatma</Link></li>
+                  <li><Link to="/iptal-iade" className="hover:text-white transition-colors">İptal ve İade</Link></li>
+                  <li><Link to="/mesafeli-satis-sozlesmesi" className="hover:text-white transition-colors">Mesafeli Satış Sözleşmesi</Link></li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm mb-3">İletişim</p>
+                <ul className="space-y-2 text-xs">
+                  <li><a href="mailto:destek@sevdailematematik.com" className="hover:text-white transition-colors">destek@sevdailematematik.com</a></li>
+                  <li><a href="tel:+905415740545" className="hover:text-white transition-colors">0541 574 05 45</a></li>
+                  <li><Link to="/iletisim" className="hover:text-white transition-colors">İletişim Sayfası</Link></li>
+                </ul>
+              </div>
+            </div>
+            <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+              <p>© {new Date().getFullYear()} sevdailematematik². Tüm hakları saklıdır.</p>
+              <p>Yeni Selanik Pasajı No:3/6, Beyoğlu / İstanbul</p>
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

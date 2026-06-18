@@ -26,12 +26,8 @@ export default function IptalIadePolitikasiPage() {
               </thead>
               <tbody>
                 <tr className="border-b border-gray-100">
-                  <td className="px-4 py-3">Ders başlangıcından 24 saat veya daha fazla önce</td>
+                  <td className="px-4 py-3">Ders başlangıcından 12 saat veya daha fazla önce</td>
                   <td className="px-4 py-3 text-green-700 font-medium">Tam iade (%100)</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="px-4 py-3">Ders başlangıcından 12–24 saat önce</td>
-                  <td className="px-4 py-3 text-yellow-700 font-medium">Kısmi iade (%50)</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3">Ders başlangıcına 12 saatten az kala</td>
