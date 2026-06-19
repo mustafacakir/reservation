@@ -32,8 +32,14 @@ public class KuveytTurkPaymentService(
         var passwordHash = ComputePasswordHash(o.Password);
         var hashData = ComputeInitHashData(o.MerchantId, req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl, o.UserName, passwordHash);
 
-        logger.LogInformation("KT Init → OrderId={OrderId} Amount={Amount} CardNumber={CardNumber}",
-            req.MerchantOrderId, amountStr, string.IsNullOrEmpty(req.CardNumber) ? "BOŞ" : req.CardNumber[..4] + "****");
+        logger.LogInformation(
+            "KT Init → Endpoint={Endpoint} MerchantId={MerchantId} UserName={UserName} " +
+            "OrderId={OrderId} Amount={Amount} OkUrl={OkUrl} FailUrl={FailUrl} " +
+            "CardNumber={CardNumber} CardHolder={CardHolder} ExpireMonth={ExpireMonth} ExpireYear={ExpireYear} HashData={HashData}",
+            endpoint, o.MerchantId, o.UserName,
+            req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl,
+            string.IsNullOrEmpty(req.CardNumber) ? "BOŞ" : req.CardNumber[..4] + "****",
+            req.CardHolderName, req.CardExpireMonth, req.CardExpireYear, hashData);
 
         var html = $"""
             <!DOCTYPE html>
