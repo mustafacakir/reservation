@@ -11,7 +11,12 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
     private static readonly string[] TenantExemptPaths =
     [
         "/health", "/api/v1/super-admin", "/swagger", "/favicon.ico", "/api/v1/tenants",
-        "/api/v1/payments/callback", "/uploads"
+        "/api/v1/payments/callback",
+        "/api/v1/payments/kuveytturk/callback",
+        "/api/v1/payments/kuveytturk/fail",
+        "/api/v1/payments/paytr/notify",
+        "/api/v1/payments/paytr/complete",
+        "/uploads"
     ];
 
     public async Task InvokeAsync(HttpContext context, ApplicationDbContext db, TenantService tenantService)
