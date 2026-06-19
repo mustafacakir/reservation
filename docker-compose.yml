@@ -60,6 +60,9 @@ services:
       - PayTr__NotificationUrl=${PAYTR_NOTIFICATION_URL:-http://localhost:5000/api/v1/payments/paytr/notify}
       - PayTr__ReturnBaseUrl=${PAYTR_RETURN_BASE_URL:-http://localhost:5000/api/v1/payments/paytr/complete}
       - PayTr__FrontendBaseUrl=${PAYTR_FRONTEND_BASE_URL:-http://localhost:3000}
+      - KuveytTurk__OkUrl=${KUVEYTTURK_OK_URL:-http://localhost:5005/api/v1/payments/kuveytturk/callback}
+      - KuveytTurk__FailUrl=${KUVEYTTURK_FAIL_URL:-http://localhost:5005/api/v1/payments/kuveytturk/fail}
+      - KuveytTurk__FrontendBaseUrl=${KUVEYTTURK_FRONTEND_BASE_URL:-http://localhost:3000}
     volumes:
       - uploads_data:/app/wwwroot/uploads
     ports:
