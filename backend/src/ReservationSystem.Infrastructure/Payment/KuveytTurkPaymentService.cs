@@ -9,7 +9,8 @@ namespace ReservationSystem.Infrastructure.Payment;
 
 public class KuveytTurkPaymentService(
     IOptions<KuveytTurkOptions> opts,
-    IHttpClientFactory httpClientFactory) : IPaymentGateway
+    IHttpClientFactory httpClientFactory,
+    ILogger<KuveytTurkPaymentService> logger) : IPaymentGateway
 {
     public string Name => "KuveytTurk";
 
@@ -29,6 +30,9 @@ public class KuveytTurkPaymentService(
         var endpoint = o.TestMode ? TestEndpoint3D : ProdEndpoint3D;
         var passwordHash = ComputePasswordHash(o.Password);
         var hashData = ComputeInitHashData(o.MerchantId, o.UserName, req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl, passwordHash);
+
+        logger.LogInformation("KT Init → MerchantId={MerchantId} UserName={UserName} OrderId={OrderId} Amount={Amount} OkUrl={OkUrl} FailUrl={FailUrl} PasswordHash={PasswordHash} HashData={HashData}",
+            o.MerchantId, o.UserName, req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl, passwordHash, hashData);
 
         // Build auto-submit HTML form — browser navigates to KT's 3D endpoint
         var html = $"""
