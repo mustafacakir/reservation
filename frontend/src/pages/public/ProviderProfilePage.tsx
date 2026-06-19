@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
-import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2 } from 'lucide-react'
+import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -195,6 +195,150 @@ function SlotPicker({
   )
 }
 
+// ── KuveytTürk kart tipi ─────────────────────────────────────────────────────
+
+interface CardData {
+  cardNumber: string
+  cardHolderName: string
+  cardExpireMonth: string
+  cardExpireYear: string
+  cardCvv: string
+}
+
+// ── KuveytTürk kart formu ─────────────────────────────────────────────────────
+
+function KuveytTurkCardForm({
+  price,
+  onSubmit,
+  onBack,
+  isLoading,
+}: {
+  price: number
+  onSubmit: (card: CardData) => void
+  onBack: () => void
+  isLoading: boolean
+}) {
+  const [card, setCard] = useState<CardData>({
+    cardNumber: '',
+    cardHolderName: '',
+    cardExpireMonth: '',
+    cardExpireYear: '',
+    cardCvv: '',
+  })
+
+  const set = (field: keyof CardData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setCard((prev) => ({ ...prev, [field]: e.target.value }))
+
+  const formatCardNumber = (val: string) =>
+    val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit({ ...card, cardNumber: card.cardNumber.replace(/\s/g, '') })
+  }
+
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent'
+  const ringStyle = { '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+      <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
+              <CreditCard size={16} style={{ color: 'var(--color-primary)' }} />
+            </div>
+            <h2 className="text-base font-bold text-gray-900">Kart Bilgileri</h2>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Numarası</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0000 0000 0000 0000"
+              value={card.cardNumber}
+              onChange={(e) => setCard((prev) => ({ ...prev, cardNumber: formatCardNumber(e.target.value) }))}
+              required
+              className={inputCls}
+              style={ringStyle}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Üzerindeki İsim</label>
+            <input
+              type="text"
+              placeholder="AD SOYAD"
+              value={card.cardHolderName}
+              onChange={set('cardHolderName')}
+              required
+              className={`${inputCls} uppercase`}
+              style={ringStyle}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ay</label>
+              <select value={card.cardExpireMonth} onChange={set('cardExpireMonth')} required className={inputCls} style={ringStyle}>
+                <option value="">Ay</option>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const m = String(i + 1).padStart(2, '0')
+                  return <option key={m} value={m}>{m}</option>
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Yıl</label>
+              <select value={card.cardExpireYear} onChange={set('cardExpireYear')} required className={inputCls} style={ringStyle}>
+                <option value="">Yıl</option>
+                {Array.from({ length: 10 }, (_, i) => {
+                  const y = String(new Date().getFullYear() + i).slice(2)
+                  return <option key={y} value={y}>{y}</option>
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">CVV</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="•••"
+                maxLength={4}
+                value={card.cardCvv}
+                onChange={(e) => setCard((prev) => ({ ...prev, cardCvv: e.target.value.replace(/\D/g, '') }))}
+                required
+                className={inputCls}
+                style={ringStyle}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+            <ShieldCheck size={14} style={{ color: 'var(--color-primary)' }} className="flex-shrink-0" />
+            <p className="text-xs text-gray-500">KuveytTürk 3D Secure ile güvenli ödeme</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {isLoading ? 'İşleniyor…' : `Ödemeyi Tamamla → ₺${Number(price).toLocaleString('tr-TR')}`}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── KuveytTürk full-page redirect ────────────────────────────────────────────
 
 function KuveytTurkRedirect({ formContent }: { formContent: string }) {
@@ -281,6 +425,7 @@ export default function ProviderProfilePage() {
   const [clientNotes, setClientNotes] = useState('')
   const [iframeToken, setIframeToken] = useState<string | null>(null)
   const [ktFormContent, setKtFormContent] = useState<string | null>(null)
+  const [showCardForm, setShowCardForm] = useState(false)
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', id, slug],
@@ -291,13 +436,24 @@ export default function ProviderProfilePage() {
   const selectedService = provider?.services.find(s => s.id === selectedServiceId)
 
   const payMutation = useMutation({
-    mutationFn: (data: { serviceId: string; providerId: string; startUtc: string; clientNotes?: string }) =>
-      apiClient.post<{ iframeToken?: string; gatewayType: string; pendingKey: string }>(
-        '/payments/initialize', data
+    mutationFn: (card: CardData) =>
+      apiClient.post<{ iframeToken?: string; gatewayType: string; pendingKey: string; formContent?: string }>(
+        '/payments/initialize', {
+          serviceId: selectedServiceId,
+          providerId: provider?.id,
+          startUtc: selectedSlotStart,
+          clientNotes: clientNotes.trim() || undefined,
+          cardNumber: card.cardNumber,
+          cardHolderName: card.cardHolderName,
+          cardExpireMonth: card.cardExpireMonth,
+          cardExpireYear: card.cardExpireYear,
+          cardCvv: card.cardCvv,
+        }
       ).then(r => r.data),
     onSuccess: (data) => {
-      if (data.gatewayType === 'KuveytTurk' && (data as any).formContent) {
-        setKtFormContent((data as any).formContent)
+      setShowCardForm(false)
+      if (data.gatewayType === 'KuveytTurk' && data.formContent) {
+        setKtFormContent(data.formContent)
       } else if (data.iframeToken) {
         setIframeToken(data.iframeToken)
       }
@@ -309,6 +465,7 @@ export default function ProviderProfilePage() {
       const msg = detail || firstError || 'Ödeme başlatılamadı. Lütfen tekrar deneyin.'
 
       if (err?.response?.status === 400 && (msg.toLowerCase().includes('müsait') || msg.toLowerCase().includes('slot'))) {
+        setShowCardForm(false)
         setSelectedSlotStart(null)
         setSelectedSlotLabel(null)
         toast.error('Seçilen saat doldu. Lütfen başka bir saat seçin.')
@@ -324,12 +481,7 @@ export default function ProviderProfilePage() {
       return
     }
     if (!selectedServiceId || !selectedSlotStart || !provider) return
-    payMutation.mutate({
-      serviceId: selectedServiceId,
-      providerId: provider.id,
-      startUtc: selectedSlotStart,
-      clientNotes: clientNotes.trim() || undefined,
-    })
+    setShowCardForm(true)
   }
 
   if (isLoading) {
@@ -369,6 +521,17 @@ export default function ProviderProfilePage() {
     setClientNotes,
     isPayLoading: payMutation.isPending,
     handlePay,
+  }
+
+  if (showCardForm && selectedService) {
+    return (
+      <KuveytTurkCardForm
+        price={selectedService.price}
+        isLoading={payMutation.isPending}
+        onBack={() => setShowCardForm(false)}
+        onSubmit={(card) => payMutation.mutate(card)}
+      />
+    )
   }
 
   return (
