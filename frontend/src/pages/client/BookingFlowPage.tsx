@@ -217,7 +217,7 @@ interface CardData {
   cardCvv: string
 }
 
-// ── KuveytTürk 3D Secure redirect (renders bank's htmlContent) ────────────────
+// ── KuveytTürk 3D Secure redirect (auto-submits generated form) ──────────────
 
 function KuveytTurkCheckout({ formContent }: { formContent: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -226,21 +226,7 @@ function KuveytTurkCheckout({ formContent }: { formContent: string }) {
     if (!containerRef.current) return
     containerRef.current.innerHTML = formContent
     const form = containerRef.current.querySelector('form')
-    if (!form) return
-
-    const set = (name: string, value: string) => {
-      const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`)
-      if (el) el.value = value
-    }
-    set('browserColorDepth', String(screen.colorDepth))
-    set('browserScreenHeight', String(screen.height))
-    set('browserScreenWidth', String(screen.width))
-    set('browserTZ', String(new Date().getTimezoneOffset()))
-    set('browserJavascriptEnabled', 'true')
-    set('browserJavaEnabled', 'false')
-    set('browserLanguage', navigator.language)
-
-    form.submit()
+    form?.submit()
   }, [formContent])
 
   return (

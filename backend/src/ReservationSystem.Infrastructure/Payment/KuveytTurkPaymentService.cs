@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -16,69 +15,56 @@ public class KuveytTurkPaymentService(
 {
     public string Name => "KuveytTurk";
 
-    private static readonly string TestEndpointProvision =
+    private const string TestEndpoint3D =
+        "https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate";
+    private const string ProdEndpoint3D =
+        "https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate";
+    private const string TestEndpointProvision =
         "https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate";
-    private static readonly string ProdEndpointProvision =
+    private const string ProdEndpointProvision =
         "https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate";
 
-    public async Task<GatewayInitResult> InitializeAsync(GatewayInitRequest req, CancellationToken ct)
+    public Task<GatewayInitResult> InitializeAsync(GatewayInitRequest req, CancellationToken ct)
     {
         var o = opts.Value;
         var amountStr = ((int)Math.Round(req.Price * 100)).ToString();
-        var endpoint = o.TestMode ? o.TestApiEndpoint : o.ProdApiEndpoint;
+        var endpoint = o.TestMode ? TestEndpoint3D : ProdEndpoint3D;
         var passwordHash = ComputePasswordHash(o.Password);
         var hashData = ComputeInitHashData(o.MerchantId, req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl, o.UserName, passwordHash);
 
-        var body = new
-        {
-            request = new
-            {
-                cardExpireDateMonth = req.CardExpireMonth,
-                amount = amountStr,
-                cardCVV2 = req.CardCvv,
-                cardHolderName = req.CardHolderName,
-                successUrl = o.OkUrl,
-                failUrl = o.FailUrl,
-                description = req.ServiceName,
-                merchantOrderId = req.MerchantOrderId,
-                userName = o.UserName,
-                cardExpireDateYear = req.CardExpireYear,
-                merchantId = o.MerchantId,
-                hashData,
-                installmentCount = "0",
-                deferringCount = "0",
-                currency = "0949",
-                cardNumber = req.CardNumber,
-            }
-        };
+        logger.LogInformation("KT Init → OrderId={OrderId} Amount={Amount} HashData={HashData}",
+            req.MerchantOrderId, amountStr, hashData);
 
-        logger.LogInformation("KT Init → OrderId={OrderId} Amount={Amount}", req.MerchantOrderId, amountStr);
+        var html = $"""
+            <!DOCTYPE html>
+            <html lang="tr">
+            <head><meta charset="UTF-8"><title>Ödeme yönlendiriliyor…</title></head>
+            <body>
+              <form id="ktForm" method="POST" action="{endpoint}">
+                <input type="hidden" name="MerchantId"            value="{o.MerchantId}" />
+                <input type="hidden" name="UserName"              value="{o.UserName}" />
+                <input type="hidden" name="HashData"              value="{hashData}" />
+                <input type="hidden" name="TransactionType"       value="Sale" />
+                <input type="hidden" name="TransactionSecurity"   value="3" />
+                <input type="hidden" name="InstallmentCount"      value="0" />
+                <input type="hidden" name="Amount"                value="{amountStr}" />
+                <input type="hidden" name="DisplayAmount"         value="{amountStr}" />
+                <input type="hidden" name="CurrencyCode"          value="0949" />
+                <input type="hidden" name="MerchantOrderId"       value="{req.MerchantOrderId}" />
+                <input type="hidden" name="OkUrl"                 value="{o.OkUrl}" />
+                <input type="hidden" name="FailUrl"               value="{o.FailUrl}" />
+                <input type="hidden" name="CardNumber"            value="{req.CardNumber}" />
+                <input type="hidden" name="CardHolderName"        value="{req.CardHolderName}" />
+                <input type="hidden" name="CardExpireDateMonth"   value="{req.CardExpireMonth}" />
+                <input type="hidden" name="CardExpireDateYear"    value="{req.CardExpireYear}" />
+                <input type="hidden" name="CardCVV2"              value="{req.CardCvv}" />
+              </form>
+              <script>document.getElementById('ktForm').submit();</script>
+            </body>
+            </html>
+            """;
 
-        var client = httpClientFactory.CreateClient("KuveytTurk");
-        var json = JsonSerializer.Serialize(body);
-        using var response = await client.PostAsync(
-            endpoint,
-            new StringContent(json, Encoding.UTF8, "application/json"),
-            ct);
-
-        var responseBody = await response.Content.ReadAsStringAsync(ct);
-        logger.LogInformation("KT API response: {Response}", responseBody);
-
-        using var doc = JsonDocument.Parse(responseBody);
-        var root = doc.RootElement;
-
-        if (!root.GetProperty("success").GetBoolean())
-        {
-            var msg = root.TryGetProperty("results", out var results) && results.GetArrayLength() > 0
-                ? results[0].GetProperty("message").GetString()
-                : "KuveytTürk ödeme başlatma hatası.";
-            throw new Exception(msg);
-        }
-
-        var htmlContent = root.GetProperty("value").GetProperty("htmlContent").GetString()
-            ?? throw new Exception("KuveytTürk HTML içerik alınamadı.");
-
-        return new GatewayInitResult("KuveytTurk", req.MerchantOrderId, htmlContent, null);
+        return Task.FromResult(new GatewayInitResult("KuveytTurk", req.MerchantOrderId, html, null));
     }
 
     public async Task<(bool Success, string? MerchantOrderId, string? Error)> HandleCallbackAsync(
