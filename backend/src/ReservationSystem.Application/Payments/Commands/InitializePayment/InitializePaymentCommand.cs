@@ -7,6 +7,11 @@ public record InitializePaymentCommand(
     Guid ProviderId,
     DateTimeOffset StartUtc,
     string? ClientNotes,
+    string? CardNumber = null,
+    string? CardHolderName = null,
+    string? CardExpireMonth = null,
+    string? CardExpireYear = null,
+    string? CardCvv = null,
     string UserIp = "127.0.0.1"
 ) : IRequest<InitializePaymentResult>;
 

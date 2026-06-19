@@ -9,7 +9,12 @@ public record GatewayInitRequest(
     Guid ServiceId,
     string ServiceName,
     decimal Price,
-    string UserIp
+    string UserIp,
+    string? CardNumber = null,
+    string? CardHolderName = null,
+    string? CardExpireMonth = null,
+    string? CardExpireYear = null,
+    string? CardCvv = null
 );
 
 public record GatewayInitResult(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle } from 'lucide-react'
@@ -207,30 +207,41 @@ function PayTrCheckout({ iframeToken, onBack }: { iframeToken: string; onBack: (
   )
 }
 
-// ── KuveytTürk 3D Secure redirect view ───────────────────────────────────────
+// ── KuveytTürk types ─────────────────────────────────────────────────────────
+
+interface CardData {
+  cardNumber: string
+  cardHolderName: string
+  cardExpireMonth: string
+  cardExpireYear: string
+  cardCvv: string
+}
+
+// ── KuveytTürk 3D Secure redirect (renders bank's htmlContent) ────────────────
 
 function KuveytTurkCheckout({ formContent }: { formContent: string }) {
-  const formRef = useRef<HTMLFormElement>(null)
-
-  const parsed = useMemo(() => {
-    const doc = new DOMParser().parseFromString(formContent, 'text/html')
-    const src = doc.querySelector('form')
-    if (!src) return null
-    return {
-      action: src.getAttribute('action') ?? '',
-      method: src.getAttribute('method') ?? 'POST',
-      fields: Array.from(src.querySelectorAll('input')).map((inp) => ({
-        name: (inp as HTMLInputElement).name,
-        value: (inp as HTMLInputElement).value,
-      })),
-    }
-  }, [formContent])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (parsed) formRef.current?.submit()
-  }, [parsed])
+    if (!containerRef.current) return
+    containerRef.current.innerHTML = formContent
+    const form = containerRef.current.querySelector('form')
+    if (!form) return
 
-  if (!parsed) return null
+    const set = (name: string, value: string) => {
+      const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+      if (el) el.value = value
+    }
+    set('browserColorDepth', String(screen.colorDepth))
+    set('browserScreenHeight', String(screen.height))
+    set('browserScreenWidth', String(screen.width))
+    set('browserTZ', String(new Date().getTimezoneOffset()))
+    set('browserJavascriptEnabled', 'true')
+    set('browserJavaEnabled', 'false')
+    set('browserLanguage', navigator.language)
+
+    form.submit()
+  }, [formContent])
 
   return (
     <>
@@ -238,18 +249,149 @@ function KuveytTurkCheckout({ formContent }: { formContent: string }) {
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'var(--color-primary-light)' }}>
           <ShieldCheck size={26} style={{ color: 'var(--color-primary)' }} />
         </div>
-        <h2 className="text-xl font-bold text-gray-900">Güvenli Ödeme Sayfasına Yönlendiriliyorsunuz</h2>
-        <p className="text-sm text-gray-500">KuveytTürk 3D Secure ödeme sayfası yükleniyor…</p>
+        <h2 className="text-xl font-bold text-gray-900">3D Secure Sayfasına Yönlendiriliyorsunuz</h2>
+        <p className="text-sm text-gray-500">Lütfen bekleyin…</p>
         <div className="flex justify-center">
           <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
         </div>
       </div>
-      <form ref={formRef} method={parsed.method} action={parsed.action} style={{ display: 'none' }}>
-        {parsed.fields.map((f, i) => (
-          <input key={i} type="hidden" name={f.name} value={f.value} readOnly />
-        ))}
-      </form>
+      <div ref={containerRef} style={{ display: 'none' }} />
     </>
+  )
+}
+
+// ── KuveytTürk kart bilgisi formu ─────────────────────────────────────────────
+
+function KuveytTurkCardForm({
+  price,
+  onSubmit,
+  onBack,
+  isLoading,
+}: {
+  price: number
+  onSubmit: (card: CardData) => void
+  onBack: () => void
+  isLoading: boolean
+}) {
+  const [card, setCard] = useState<CardData>({
+    cardNumber: '',
+    cardHolderName: '',
+    cardExpireMonth: '',
+    cardExpireYear: '',
+    cardCvv: '',
+  })
+
+  const set = (field: keyof CardData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setCard((prev) => ({ ...prev, [field]: e.target.value }))
+
+  const formatCardNumber = (val: string) =>
+    val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit({
+      ...card,
+      cardNumber: card.cardNumber.replace(/\s/g, ''),
+    })
+  }
+
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent'
+  const ringStyle = { '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties
+
+  return (
+    <div className="max-w-lg mx-auto space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
+            <CreditCard size={16} style={{ color: 'var(--color-primary)' }} />
+          </div>
+          <h2 className="text-base font-bold text-gray-900">Kart Bilgileri</h2>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Numarası</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="0000 0000 0000 0000"
+            value={card.cardNumber}
+            onChange={(e) => setCard((prev) => ({ ...prev, cardNumber: formatCardNumber(e.target.value) }))}
+            required
+            className={inputCls}
+            style={ringStyle}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Üzerindeki İsim</label>
+          <input
+            type="text"
+            placeholder="AD SOYAD"
+            value={card.cardHolderName}
+            onChange={set('cardHolderName')}
+            required
+            className={`${inputCls} uppercase`}
+            style={ringStyle}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ay</label>
+            <select value={card.cardExpireMonth} onChange={set('cardExpireMonth')} required className={inputCls} style={ringStyle}>
+              <option value="">Ay</option>
+              {Array.from({ length: 12 }, (_, i) => {
+                const m = String(i + 1).padStart(2, '0')
+                return <option key={m} value={m}>{m}</option>
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Yıl</label>
+            <select value={card.cardExpireYear} onChange={set('cardExpireYear')} required className={inputCls} style={ringStyle}>
+              <option value="">Yıl</option>
+              {Array.from({ length: 10 }, (_, i) => {
+                const y = String(new Date().getFullYear() + i).slice(2)
+                return <option key={y} value={y}>{y}</option>
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">CVV</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="•••"
+              maxLength={4}
+              value={card.cardCvv}
+              onChange={(e) => setCard((prev) => ({ ...prev, cardCvv: e.target.value.replace(/\D/g, '') }))}
+              required
+              className={inputCls}
+              style={ringStyle}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+          <ShieldCheck size={14} style={{ color: 'var(--color-primary)' }} className="flex-shrink-0" />
+          <p className="text-xs text-gray-500">KuveytTürk 3D Secure ile güvenli ödeme</p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+          style={{ background: 'var(--color-primary)' }}
+        >
+          {isLoading ? 'İşleniyor…' : `Ödemeyi Tamamla → ₺${Number(price).toLocaleString('tr-TR')}`}
+        </button>
+      </form>
+    </div>
   )
 }
 
@@ -292,6 +434,7 @@ function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: 
 type PaymentState =
   | { type: 'none' }
   | { type: 'paytr'; iframeToken: string }
+  | { type: 'kuveytturk-card-form' }
   | { type: 'kuveytturk'; formContent: string }
   | { type: 'iyzico'; formContent: string }
 
@@ -317,9 +460,19 @@ export default function BookingFlowPage() {
   const service = provider?.services.find((s) => s.id === serviceId)
 
   const initPaymentMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (card: CardData) =>
       apiClient
-        .post('/payments/initialize', { serviceId, providerId, startUtc: selectedSlotStart, clientNotes: clientNotes || null })
+        .post('/payments/initialize', {
+          serviceId,
+          providerId,
+          startUtc: selectedSlotStart,
+          clientNotes: clientNotes || null,
+          cardNumber: card.cardNumber,
+          cardHolderName: card.cardHolderName,
+          cardExpireMonth: card.cardExpireMonth,
+          cardExpireYear: card.cardExpireYear,
+          cardCvv: card.cardCvv,
+        })
         .then((r) => r.data as { gatewayType: string; iframeToken?: string; formContent?: string }),
     onSuccess: (data) => {
       if (data.gatewayType === 'PayTr' && data.iframeToken) {
@@ -346,6 +499,17 @@ export default function BookingFlowPage() {
 
   if (paymentState.type === 'paytr') {
     return <PayTrCheckout iframeToken={paymentState.iframeToken} onBack={() => setPaymentState({ type: 'none' })} />
+  }
+
+  if (paymentState.type === 'kuveytturk-card-form') {
+    return (
+      <KuveytTurkCardForm
+        price={service?.price ?? 0}
+        isLoading={initPaymentMutation.isPending}
+        onBack={() => setPaymentState({ type: 'none' })}
+        onSubmit={(card) => initPaymentMutation.mutate(card)}
+      />
+    )
   }
 
   if (paymentState.type === 'kuveytturk') {
@@ -481,12 +645,11 @@ export default function BookingFlowPage() {
 
           {/* CTA */}
           <button
-            onClick={() => initPaymentMutation.mutate()}
-            disabled={initPaymentMutation.isPending}
-            className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+            onClick={() => setPaymentState({ type: 'kuveytturk-card-form' })}
+            className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 shadow-md"
             style={{ background: 'var(--color-primary)' }}
           >
-            {initPaymentMutation.isPending ? 'Hazırlanıyor…' : `Ödemeye Geç → ₺${Number(service?.price ?? 0).toLocaleString('tr-TR')}`}
+            {`Ödemeye Geç → ₺${Number(service?.price ?? 0).toLocaleString('tr-TR')}`}
           </button>
         </>
       )}
