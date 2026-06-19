@@ -162,12 +162,27 @@ public class KuveytTurkPaymentService(
             </KuveytTurkVPosMessage>
             """;
 
-        var client = httpClientFactory.CreateClient("KuveytTurk");
-        using var response = await client.PostAsync(
-            endpoint,
-            new StringContent(xml, Encoding.UTF8, "text/xml"), ct);
+        logger.LogInformation("KT Provision → Endpoint={Endpoint} MerchantId={MerchantId} OrderId={OrderId} Amount={Amount} MD={MD} HashData={HashData}",
+            endpoint, o.MerchantId, merchantOrderId, amount, md, hashData);
 
-        var responseXml = await response.Content.ReadAsStringAsync(ct);
+        var client = httpClientFactory.CreateClient("KuveytTurk");
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        string responseXml;
+        try
+        {
+            using var response = await client.PostAsync(
+                endpoint,
+                new StringContent(xml, Encoding.UTF8, "text/xml"), cts.Token);
+            responseXml = await response.Content.ReadAsStringAsync(cts.Token);
+            logger.LogInformation("KT Provision response: {Response}", responseXml);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("KT Provision HTTP failed: {Error}", ex.Message);
+            return (false, "Provizyon isteği zaman aşımına uğradı.");
+        }
 
         try
         {
