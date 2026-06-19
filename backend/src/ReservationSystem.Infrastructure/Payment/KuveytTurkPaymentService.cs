@@ -42,17 +42,18 @@ public class KuveytTurkPaymentService(
             <head><meta charset="UTF-8"><title>Ödeme yönlendiriliyor…</title></head>
             <body>
               <form id="ktForm" method="POST" action="{endpoint}">
-                <input type="hidden" name="MerchantId"       value="{o.MerchantId}" />
-                <input type="hidden" name="UserName"         value="{o.UserName}" />
-                <input type="hidden" name="HashData"         value="{hashData}" />
-                <input type="hidden" name="TransactionType"  value="Sale" />
-                <input type="hidden" name="InstallmentCount" value="0" />
-                <input type="hidden" name="Amount"           value="{amountStr}" />
-                <input type="hidden" name="DisplayAmount"    value="{amountStr}" />
-                <input type="hidden" name="CurrencyCode"     value="0949" />
-                <input type="hidden" name="MerchantOrderId"  value="{req.MerchantOrderId}" />
-                <input type="hidden" name="OkUrl"            value="{o.OkUrl}" />
-                <input type="hidden" name="FailUrl"          value="{o.FailUrl}" />
+                <input type="hidden" name="MerchantId"          value="{o.MerchantId}" />
+                <input type="hidden" name="UserName"          value="{o.UserName}" />
+                <input type="hidden" name="HashData"          value="{hashData}" />
+                <input type="hidden" name="TransactionType"   value="Sale" />
+                <input type="hidden" name="TransactionSecurity" value="3" />
+                <input type="hidden" name="InstallmentCount"  value="0" />
+                <input type="hidden" name="Amount"            value="{amountStr}" />
+                <input type="hidden" name="DisplayAmount"     value="{amountStr}" />
+                <input type="hidden" name="CurrencyCode"      value="0949" />
+                <input type="hidden" name="MerchantOrderId"   value="{req.MerchantOrderId}" />
+                <input type="hidden" name="OkUrl"             value="{o.OkUrl}" />
+                <input type="hidden" name="FailUrl"           value="{o.FailUrl}" />
               </form>
               <script>document.getElementById('ktForm').submit();</script>
             </body>
