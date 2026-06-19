@@ -165,8 +165,12 @@ public class PaymentsController(
 
     [HttpPost("kuveytturk/fail")]
     [AllowAnonymous]
-    public IActionResult KuveytTurkFail()
+    public IActionResult KuveytTurkFail(ILogger<PaymentsController> logger)
     {
+        var form = Request.Form;
+        foreach (var key in form.Keys)
+            logger.LogWarning("KT Fail form field: {Key}={Value}", key, form[key]);
+
         var frontendUrl = kuveytTurkOpts.Value.FrontendBaseUrl;
         return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme iptal edildi veya başarısız oldu")}");
     }
