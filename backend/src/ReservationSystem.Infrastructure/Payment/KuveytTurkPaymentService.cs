@@ -101,16 +101,33 @@ public class KuveytTurkPaymentService(
             }
         }
 
-        var mdStatus = root.Element("MdStatus")?.Value;
-        if (mdStatus != "1")
+        // Eski format: <MdStatus>1</MdStatus>
+        // Yeni format: <MDStatus><MDStatusCode>1</MDStatusCode></MDStatus>
+        var mdStatusOld = root.Element("MdStatus")?.Value;
+        var mdStatusNew = root.Element("MDStatus")?.Element("MDStatusCode")?.Value;
+        var responseCode = root.Element("ResponseCode")?.Value;
+
+        var isSuccess = mdStatusOld == "1"
+            || mdStatusNew == "1"
+            || responseCode == "00";
+
+        if (!isSuccess)
         {
-            var errMsg = root.Element("MdErrorMessage")?.Value ?? "3D Secure doğrulama başarısız.";
+            var errMsg = root.Element("MdErrorMessage")?.Value
+                ?? root.Element("MDStatus")?.Element("MDStatusDescription")?.Value
+                ?? root.Element("ResponseMessage")?.Value
+                ?? "3D Secure doğrulama başarısız.";
+            logger.LogWarning("KT Callback 3DS failed: MdStatus={Old} MDStatusCode={New} ResponseCode={RC} Msg={Msg}",
+                mdStatusOld, mdStatusNew, responseCode, errMsg);
             return (false, null, errMsg);
         }
 
         var md = root.Element("MD")?.Value ?? string.Empty;
         var merchantOrderId = root.Element("MerchantOrderId")?.Value ?? string.Empty;
-        var amount = root.Element("Amount")?.Value ?? string.Empty;
+        // Amount root'ta yoksa VPosMessage içine bak
+        var amount = root.Element("Amount")?.Value
+            ?? root.Element("VPosMessage")?.Element("Amount")?.Value
+            ?? string.Empty;
 
         var (ok, error) = await ProvisionAsync(merchantOrderId, amount, md, ct);
         return ok ? (true, merchantOrderId, null) : (false, null, error);
