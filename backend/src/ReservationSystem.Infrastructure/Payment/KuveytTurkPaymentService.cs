@@ -155,7 +155,7 @@ public class KuveytTurkPaymentService(
         string merchantId, string userName, string merchantOrderId,
         string amount, string okUrl, string failUrl, string passwordHash)
     {
-        var raw = merchantId + userName + merchantOrderId + amount + okUrl + failUrl + passwordHash;
+        var raw = merchantId + merchantOrderId + amount + okUrl + failUrl + userName + passwordHash;
         return Convert.ToBase64String(SHA1.HashData(Encoding.UTF8.GetBytes(raw)));
     }
 
