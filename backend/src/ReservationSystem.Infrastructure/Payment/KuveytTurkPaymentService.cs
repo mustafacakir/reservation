@@ -77,14 +77,29 @@ public class KuveytTurkPaymentService(
         IFormCollection form, CancellationToken ct)
     {
         var authResponseRaw = form["AuthenticationResponse"].ToString();
+        logger.LogInformation("KT Callback raw AuthenticationResponse: {Raw}", authResponseRaw);
+
         if (string.IsNullOrWhiteSpace(authResponseRaw))
             return (false, null, "Banka yanıtı alınamadı.");
 
-        var authXml = Uri.UnescapeDataString(authResponseRaw);
+        // Try URL-decoded first, then raw (bank may send either way)
+        var decoded = Uri.UnescapeDataString(authResponseRaw.Replace("+", "%20"));
+        logger.LogInformation("KT Callback decoded: {Decoded}", decoded);
 
         XElement root;
-        try { root = XElement.Parse(authXml); }
-        catch { return (false, null, "Banka yanıtı işlenemedi."); }
+        try
+        {
+            root = XElement.Parse(decoded);
+        }
+        catch
+        {
+            try { root = XElement.Parse(authResponseRaw); }
+            catch (Exception ex)
+            {
+                logger.LogError("KT Callback XML parse failed. Raw={Raw} Error={Error}", authResponseRaw, ex.Message);
+                return (false, null, "Banka yanıtı işlenemedi.");
+            }
+        }
 
         var mdStatus = root.Element("MdStatus")?.Value;
         if (mdStatus != "1")
