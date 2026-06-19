@@ -14,7 +14,14 @@
       "Bash(docker exec reservation-postgres *)",
       "Bash(curl *)",
       "Bash(Remove-Item \"C:\\\\dev\\\\reservation\\\\backend\\\\src\\\\ReservationSystem.Application\\\\obj\\\\Debug\\\\net8.0\\\\ReservationSystem.Application.csproj.CoreCompileInputs.cache\" -Force -ErrorAction SilentlyContinue)",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "Skill(run)",
+      "Bash(docker-compose restart *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(gh repo *)"
     ]
   }
 }
