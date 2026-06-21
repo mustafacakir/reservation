@@ -21,8 +21,8 @@ public class UpdateMyProfileCommandHandler(
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("ServiceProvider", userId);
 
-        user.UpdateProfile(request.FirstName, request.LastName, request.AvatarUrl);
-        provider.UpdateProfile(request.Bio, request.Specializations, request.HourlyRate, request.Currency);
+        user.UpdateProfile(request.FirstName, request.LastName, request.AvatarUrl, user.IsEmailSubscribed);
+        provider.UpdateProfile(request.Bio, request.Specializations, request.HourlyRate, request.Currency, request.InstagramUrl, request.LinkedInUrl);
 
         await db.SaveChangesAsync(cancellationToken);
     }

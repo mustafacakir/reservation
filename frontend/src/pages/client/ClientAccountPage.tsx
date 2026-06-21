@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { User, Mail, Save, Shield } from 'lucide-react'
 import { authApi } from '@/api/endpoints/auth.api'
+import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 
@@ -22,9 +24,21 @@ function getNameParts(fullName: string | null) {
 
 export default function ClientAccountPage() {
   const toast = useToast()
-  const { fullName, setAuth, userId, role, accessToken, refreshToken } = useAuthStore()
+  const { fullName, setAuth, setFullName, userId, role, accessToken, refreshToken } = useAuthStore()
   const initials = fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const { firstName, lastName } = getNameParts(fullName)
+  const [isEmailSubscribed, setIsEmailSubscribed] = useState(false)
+  const [subLoaded, setSubLoaded] = useState(false)
+
+  useQuery({
+    queryKey: ['authMe'],
+    queryFn: () => apiClient.get('/auth/me').then((r) => r.data as { isEmailSubscribed: boolean }),
+    enabled: !subLoaded,
+    onSuccess: (d: { isEmailSubscribed: boolean }) => {
+      setIsEmailSubscribed(d.isEmailSubscribed)
+      setSubLoaded(true)
+    },
+  } as any)
 
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -32,20 +46,27 @@ export default function ClientAccountPage() {
   })
 
   const mutation = useMutation({
-    mutationFn: authApi.updateProfile,
+    mutationFn: (d: ProfileForm) => authApi.updateProfile({ ...d, isEmailSubscribed }),
     onSuccess: (data) => {
       if (userId && role && accessToken && refreshToken) {
         setAuth({ userId, fullName: data.fullName, role, accessToken, refreshToken })
+      } else {
+        setFullName(data.fullName)
       }
-      toast.success('Profil güncellendi', 'İsim bilgilerin kaydedildi.')
+      setIsEmailSubscribed(data.isEmailSubscribed)
+      toast.success('Profil güncellendi', 'Bilgilerin kaydedildi.')
     },
     onError: () => toast.error('Güncelleme başarısız', 'Lütfen tekrar deneyin.'),
   })
 
+  const inputCls = (hasError: boolean) =>
+    `w-full border rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+      hasError ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-[var(--color-primary)]'
+    }`
+
   return (
     <div className="space-y-5 max-w-lg">
 
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Hesabım</h1>
         <p className="text-sm text-gray-400 mt-0.5">Kişisel bilgilerini düzenle</p>
@@ -76,29 +97,39 @@ export default function ClientAccountPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Ad</label>
-              <input
-                {...register('firstName')}
-                className={`w-full border rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-                  errors.firstName ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-[var(--color-primary)]'
-                }`}
-              />
+              <input {...register('firstName')} className={inputCls(!!errors.firstName)} />
               {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Soyad</label>
-              <input
-                {...register('lastName')}
-                className={`w-full border rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-                  errors.lastName ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-[var(--color-primary)]'
-                }`}
-              />
+              <input {...register('lastName')} className={inputCls(!!errors.lastName)} />
               {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName.message}</p>}
             </div>
           </div>
 
+          {/* Email subscription toggle */}
+          <label className="flex items-start gap-3 cursor-pointer select-none pt-1">
+            <div
+              onClick={() => setIsEmailSubscribed((v) => !v)}
+              className="flex-shrink-0 mt-0.5 w-9 h-5 rounded-full transition-colors relative cursor-pointer"
+              style={isEmailSubscribed ? { background: 'var(--color-primary)' } : { background: '#d1d5db' }}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                style={{ transform: isEmailSubscribed ? 'translateX(16px)' : 'translateX(2px)' }}
+              />
+            </div>
+            <span className="text-xs text-gray-600 leading-relaxed">
+              <span className="flex items-center gap-1 font-semibold mb-0.5">
+                <Mail size={11} /> Bilgilendirme e-postaları
+              </span>
+              Kampanya, duyuru ve bilgilendirici e-postalar almak istiyorum.
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={mutation.isPending || !isDirty}
+            disabled={mutation.isPending || (!isDirty && subLoaded)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{ background: 'var(--color-primary)' }}
           >

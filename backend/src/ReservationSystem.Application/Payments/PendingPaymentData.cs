@@ -6,5 +6,9 @@ public record PendingPaymentData(
     Guid ServiceId,
     Guid ProviderId,
     DateTimeOffset StartUtc,
-    string? ClientNotes
+    string? ClientNotes,
+    Guid? ExistingBookingId = null,
+    bool IsPaymentLink = false,
+    string? PaymentLinkToken = null,
+    string? StudentEmail = null
 );

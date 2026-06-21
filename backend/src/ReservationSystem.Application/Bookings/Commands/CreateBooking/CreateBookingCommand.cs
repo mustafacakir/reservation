@@ -23,5 +23,6 @@ public record BookingDto(
     decimal Price,
     string Currency,
     string? ClientNotes = null,
-    string? ClientName = null
+    string? ClientName = null,
+    string? PaymentLinkToken = null
 );

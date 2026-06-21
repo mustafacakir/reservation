@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
@@ -10,7 +11,9 @@ namespace ReservationSystem.Application.Bookings.Commands.CreateBooking;
 public class CreateBookingCommandHandler(
     IApplicationDbContext db,
     ICurrentUserService currentUser,
-    ITenantService tenantService)
+    ITenantService tenantService,
+    IEmailService emailService,
+    ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, CreateBookingResult>
 {
     public async Task<CreateBookingResult> Handle(
@@ -22,7 +25,6 @@ public class CreateBookingCommandHandler(
         var clientId = currentUser.UserId
             ?? throw new UnauthorizedException("Authentication required.");
 
-        // Load service with provider
         var service = await db.Services
             .Include(s => s.Provider).ThenInclude(p => p.User)
             .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.IsActive, cancellationToken)
@@ -31,59 +33,99 @@ public class CreateBookingCommandHandler(
         if (service.ProviderId != request.ProviderId)
             throw new ValidationException(["Service does not belong to the specified provider."]);
 
+        if (service.Price > 0)
+            throw new ValidationException(["Bu ders ücretsiz değil. Ödeme ile rezervasyon yapınız."]);
+
         if (!service.Provider.IsAcceptingClients)
             throw new ConflictException("This provider is not currently accepting new clients.");
 
-        var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
+        var client = await db.Users
+            .FirstOrDefaultAsync(u => u.Id == clientId, cancellationToken)
+            ?? throw new NotFoundException("User", clientId);
 
-        if (service.SessionType == Domain.Enums.SessionType.Group)
+        // Use service's fixed ScheduledStart if set (group or individual with preset time)
+        var effectiveStart = service.ScheduledStart.HasValue
+            ? service.ScheduledStart.Value
+            : request.StartUtc;
+
+        var blockMinutes = (service.ScheduledStart.HasValue && service.ScheduledEnd.HasValue)
+            ? (int)(service.ScheduledEnd.Value - service.ScheduledStart.Value).TotalMinutes
+            : service.DurationMinutes;
+
+        int weeks = service.RecurrenceWeeks ?? 1;
+        var recurrenceGroupId = weeks > 1 ? Guid.NewGuid() : (Guid?)null;
+
+        var isDuplicate = await db.Bookings.AnyAsync(b =>
+            b.ClientId == clientId &&
+            b.ServiceId == service.Id &&
+            b.StartUtc == effectiveStart &&
+            b.Status != Domain.Enums.BookingStatus.Cancelled &&
+            b.Status != Domain.Enums.BookingStatus.NoShow, cancellationToken);
+        if (isDuplicate)
+            throw new ConflictException("Bu derse zaten kayıtlısınız.");
+
+        if (service.SessionType == Domain.Enums.SessionType.Group && service.MaxParticipants.HasValue)
         {
-            // Group session: allow multiple bookings until capacity is reached
-            var participantCount = await db.Bookings
-                .CountAsync(b =>
-                    b.ServiceId == request.ServiceId &&
-                    b.StartUtc == request.StartUtc &&
+            for (int w = 0; w < weeks; w++)
+            {
+                var slotStart = effectiveStart.AddDays(7 * w);
+                var count = await db.Bookings.CountAsync(b =>
+                    b.ServiceId == service.Id &&
+                    b.StartUtc == slotStart &&
                     b.Status != Domain.Enums.BookingStatus.Cancelled &&
-                    b.Status != Domain.Enums.BookingStatus.NoShow,
-                    cancellationToken);
-
-            if (participantCount >= service.MaxParticipants)
-                throw new ConflictException(
-                    $"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+                    b.Status != Domain.Enums.BookingStatus.NoShow, cancellationToken);
+                if (count >= service.MaxParticipants.Value)
+                    throw new ConflictException($"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+            }
         }
-        else
+        else if (service.SessionType != Domain.Enums.SessionType.Group)
         {
-            // Individual session: no time overlap allowed
-            var hasConflict = await db.Bookings
-                .AnyAsync(b =>
-                    b.ProviderId == request.ProviderId &&
-                    b.Status != Domain.Enums.BookingStatus.Cancelled &&
-                    b.Status != Domain.Enums.BookingStatus.NoShow &&
-                    b.StartUtc < endUtc &&
-                    b.EndUtc > request.StartUtc,
-                    cancellationToken);
-
+            var endUtc = effectiveStart.AddMinutes(blockMinutes);
+            var hasConflict = await db.Bookings.AnyAsync(b =>
+                b.ProviderId == request.ProviderId &&
+                b.Status != Domain.Enums.BookingStatus.Cancelled &&
+                b.Status != Domain.Enums.BookingStatus.NoShow &&
+                b.StartUtc < endUtc && b.EndUtc > effectiveStart, cancellationToken);
             if (hasConflict)
-                throw new SlotNotAvailableException(request.StartUtc);
+                throw new SlotNotAvailableException(effectiveStart);
         }
 
-        var booking = Booking.Create(
-            tenantId, request.ServiceId, request.ProviderId, clientId,
-            request.StartUtc, endUtc, service.Price, service.Currency,
-            request.ClientNotes);
+        var bookings = new List<Booking>();
+        for (int w = 0; w < weeks; w++)
+        {
+            var startUtc = effectiveStart.AddDays(7 * w);
+            var endUtc = startUtc.AddMinutes(blockMinutes);
+            var b = Booking.Create(tenantId, service.Id, service.ProviderId, clientId,
+                startUtc, endUtc, service.Price, service.Currency, request.ClientNotes, recurrenceGroupId);
+            b.Confirm();
+            bookings.Add(b);
+        }
 
-        // Auto-confirm all new bookings
-        booking.Confirm();
-
-        await db.Bookings.AddAsync(booking, cancellationToken);
+        await db.Bookings.AddRangeAsync(bookings, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        var dto = new BookingDto(
-            booking.Id, service.Id, service.Name,
-            service.ProviderId, service.Provider.User.FullName,
-            booking.StartUtc, booking.EndUtc,
-            booking.Status.ToString(), booking.Price, booking.Currency);
+        var first = bookings[0];
 
-        return new CreateBookingResult(booking.Id, dto);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendBookingConfirmationAsync(new BookingEmailData(
+                    first.Id, service.Name,
+                    service.Provider.User.FullName, service.Provider.User.Email,
+                    client.FullName, client.Email,
+                    first.StartUtc, first.EndUtc,
+                    service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword));
+            }
+            catch (Exception ex) { logger.LogError(ex, "Free booking confirmation email failed"); }
+        }, CancellationToken.None);
+
+        var dto = new BookingDto(
+            first.Id, service.Id, service.Name,
+            service.ProviderId, service.Provider.User.FullName,
+            first.StartUtc, first.EndUtc,
+            first.Status.ToString(), first.Price, first.Currency);
+
+        return new CreateBookingResult(first.Id, dto);
     }
 }

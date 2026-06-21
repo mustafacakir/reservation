@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, User, CalendarDays, Clock, ChevronRight, BookOpen, Banknote } from 'lucide-react'
+import { Users, User, CalendarDays, Clock, ChevronRight, BookOpen, Banknote, Link, Copy, Check, Mail } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { useToast } from '@/components/ui/Toast'
@@ -23,6 +23,12 @@ function toDateParam(d: Date) {
 
 const WEEKDAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
 const MONTHS   = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+
+function fmtUtc(utc: string) {
+  const d = new Date(utc)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} · ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 // ── Slot picker ───────────────────────────────────────────────────────────────
 
@@ -59,7 +65,6 @@ function SlotPicker({
 
   return (
     <div>
-      {/* Date strip */}
       <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
         {days.map((d) => {
           const ds = toDateParam(d)
@@ -91,7 +96,6 @@ function SlotPicker({
         })}
       </div>
 
-      {/* Time slots */}
       <div className="mt-4">
         {isLoading ? (
           <div className="grid grid-cols-4 gap-2">
@@ -170,6 +174,80 @@ function Step({ n, label, done, active }: { n: number; label: string; done: bool
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white'
 const inputStyle = { '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties
 
+// ── Payment link success card ─────────────────────────────────────────────────
+
+function PaymentLinkSuccess({
+  token,
+  studentName,
+  studentEmail,
+  onNew,
+}: {
+  token: string
+  studentName: string
+  studentEmail: string
+  onNew: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const link = `${window.location.origin}/odeme/${token}`
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 max-w-lg">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
+          <Link size={18} style={{ color: 'var(--color-primary)' }} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-900">Ödeme linki oluşturuldu</p>
+          <p className="text-xs text-gray-500">{studentName} bu linki kullanarak ödeme yapabilir</p>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+        <p className="text-xs text-gray-600 flex-1 truncate font-mono">{link}</p>
+        <button
+          onClick={handleCopy}
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+          style={copied
+            ? { background: '#d1fae5', color: '#059669' }
+            : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+        >
+          {copied ? <><Check size={12} /> Kopyalandı</> : <><Copy size={12} /> Kopyala</>}
+        </button>
+      </div>
+
+      {studentEmail && (
+        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+          <Mail size={13} className="text-blue-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-700">
+            Ödeme linki <strong>{studentEmail}</strong> adresine gönderildi.
+            Öğrenci ödemeyi tamamladığında rezervasyon otomatik onaylanacak.
+          </p>
+        </div>
+      )}
+
+      {!studentEmail && (
+        <p className="text-xs text-gray-400">
+          Öğrenci ödemeyi tamamladığında rezervasyon otomatik onaylanır.
+        </p>
+      )}
+
+      <button
+        onClick={onNew}
+        className="text-sm font-semibold underline"
+        style={{ color: 'var(--color-primary)' }}
+      >
+        Yeni rezervasyon ekle
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ManualBookingPage() {
@@ -179,6 +257,10 @@ export default function ManualBookingPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [notes, setNotes] = useState('')
+  const [generatePaymentLink, setGeneratePaymentLink] = useState(false)
+  const [studentEmail, setStudentEmail] = useState('')
+  const [paymentLinkToken, setPaymentLinkToken] = useState<string | null>(null)
+
   const qc = useQueryClient()
   const toast = useToast()
 
@@ -195,22 +277,32 @@ export default function ManualBookingPage() {
   const selectedService = services.find((s) => s.id === serviceId)
   const providerId = myProfile?.providerId
 
+  // Fixed-time services (scheduledStart set) don't need a slot picker
+  const isFixed = !!selectedService?.scheduledStart
+  const effectiveStart = isFixed ? selectedService!.scheduledStart! : selectedStart
+  const effectiveLabel = isFixed ? fmtUtc(selectedService!.scheduledStart!) : selectedLabel
+
   const mutation = useMutation({
     mutationFn: () =>
       apiClient.post('/bookings/manual', {
         serviceId,
-        startUtc: selectedStart,
+        startUtc: effectiveStart,
         studentName: `${firstName.trim()} ${lastName.trim()}`.trim(),
         notes: notes || null,
+        generatePaymentLink,
+        studentEmail: generatePaymentLink && studentEmail.trim() ? studentEmail.trim() : null,
       }),
-    onSuccess: () => {
-      toast.success(
-        'Rezervasyon eklendi',
-        `${firstName.trim()} ${lastName.trim()} · ${selectedLabel}`,
-      )
-      setFirstName('')
-      setLastName('')
-      setNotes('')
+    onSuccess: (res) => {
+      const token: string | null = res.data?.paymentLinkToken ?? null
+      if (token) {
+        setPaymentLinkToken(token)
+      } else {
+        toast.success(
+          'Rezervasyon eklendi',
+          `${firstName.trim()} ${lastName.trim()} · ${effectiveLabel}`,
+        )
+        resetForm()
+      }
       qc.invalidateQueries({ queryKey: ['slots'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['providerBookings'] })
     },
@@ -220,10 +312,39 @@ export default function ManualBookingPage() {
     },
   })
 
+  function resetForm() {
+    setFirstName('')
+    setLastName('')
+    setNotes('')
+    setGeneratePaymentLink(false)
+    setStudentEmail('')
+    setPaymentLinkToken(null)
+    setSelectedStart(null)
+    setSelectedLabel(null)
+  }
+
   const step1Done = !!serviceId
-  const step2Done = !!selectedStart
+  const step2Done = isFixed ? true : !!selectedStart
   const step3Active = step1Done && step2Done
   const canSubmit = step1Done && step2Done && firstName.trim() && lastName.trim()
+
+  // Show payment link success state
+  if (paymentLinkToken) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Rezervasyon Ekle</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Ödeme linki oluşturuldu.</p>
+        </div>
+        <PaymentLinkSuccess
+          token={paymentLinkToken}
+          studentName={`${firstName.trim()} ${lastName.trim()}`.trim()}
+          studentEmail={studentEmail.trim()}
+          onNew={() => { resetForm(); setServiceId('') }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -272,7 +393,12 @@ export default function ManualBookingPage() {
                   return (
                     <button
                       key={s.id}
-                      onClick={() => { setServiceId(s.id); setSelectedStart(null); setSelectedLabel(null) }}
+                      onClick={() => {
+                        setServiceId(s.id)
+                        setSelectedStart(null)
+                        setSelectedLabel(null)
+                        setGeneratePaymentLink(false)
+                      }}
                       className={`w-full text-left p-3.5 rounded-xl border-2 transition-all flex items-center gap-3 ${
                         active ? '' : 'border-gray-100 hover:border-gray-200 bg-white'
                       }`}
@@ -291,11 +417,12 @@ export default function ManualBookingPage() {
                         <p className="text-xs text-gray-400 mt-0.5">
                           {s.durationMinutes} dk
                           {s.sessionType === 'Group' && s.maxParticipants && ` · Maks. ${s.maxParticipants} kişi`}
+                          {s.scheduledStart && ` · ${fmtUtc(s.scheduledStart)}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 text-sm font-bold text-gray-900 flex-shrink-0">
                         <Banknote size={13} className="text-gray-400" />
-                        ₺{Number(s.price).toLocaleString('tr-TR')}
+                        {Number(s.price) === 0 ? <span className="text-green-600">Ücretsiz</span> : `₺${Number(s.price).toLocaleString('tr-TR')}`}
                       </div>
                     </button>
                   )
@@ -348,6 +475,44 @@ export default function ManualBookingPage() {
                   style={inputStyle}
                 />
               </div>
+
+              {/* Payment link toggle — only when service has a price */}
+              {selectedService && Number(selectedService.price) > 0 && (
+                <div className="pt-1 space-y-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <div
+                      onClick={() => setGeneratePaymentLink((v) => !v)}
+                      className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 relative cursor-pointer ${generatePaymentLink ? '' : 'bg-gray-200'}`}
+                      style={generatePaymentLink ? { background: 'var(--color-primary)' } : {}}
+                    >
+                      <span
+                        className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                        style={{ transform: generatePaymentLink ? 'translateX(20px)' : 'translateX(2px)' }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Link size={12} className="text-gray-400" />
+                      Ödeme linkiyle ödesin
+                    </span>
+                  </label>
+
+                  {generatePaymentLink && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                        <span className="flex items-center gap-1"><Mail size={11} /> Öğrencinin e-postası <span className="font-normal text-gray-400">(ödeme linki bu adrese gönderilir)</span></span>
+                      </label>
+                      <input
+                        type="email"
+                        value={studentEmail}
+                        onChange={(e) => setStudentEmail(e.target.value)}
+                        placeholder="ogrenci@ornek.com"
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -355,14 +520,14 @@ export default function ManualBookingPage() {
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !canSubmit}
-            className="w-full py-3.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-opacity hover:opacity-90 shadow-sm"
+            className="w-full py-3.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-opacity hover:opacity-90 shadow-sm flex items-center justify-center gap-2"
             style={{ background: 'var(--color-primary)' }}
           >
-            {mutation.isPending ? 'Kaydediliyor…' : 'Rezervasyonu Kaydet'}
+            {mutation.isPending ? 'Kaydediliyor…' : generatePaymentLink ? <><Link size={15} /> Ödeme Linki Oluştur</> : 'Rezervasyonu Kaydet'}
           </button>
         </div>
 
-        {/* Right column: calendar */}
+        {/* Right column: calendar / fixed time */}
         <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${step1Done ? 'border-gray-100' : 'border-gray-100 opacity-40 pointer-events-none'}`}>
           <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -371,28 +536,36 @@ export default function ManualBookingPage() {
               </div>
               <h2 className="text-sm font-semibold text-gray-800">Tarih ve Saat</h2>
             </div>
-            {selectedLabel && (
+            {effectiveLabel && (
               <span
                 className="text-xs font-semibold px-2.5 py-1 rounded-full"
                 style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
               >
-                {selectedLabel}
+                {effectiveLabel}
               </span>
             )}
           </div>
 
           <div className="p-4">
-            {step1Done && providerId && selectedService ? (
-              <SlotPicker
-                providerId={providerId}
-                serviceId={serviceId}
-                durationMinutes={selectedService.durationMinutes}
-                selectedStart={selectedStart}
-                onSelect={(start, label) => {
-                  setSelectedStart(start || null)
-                  setSelectedLabel(label || null)
-                }}
-              />
+            {step1Done && selectedService ? (
+              isFixed ? (
+                <div className="py-6 text-center space-y-2">
+                  <CalendarDays size={28} className="mx-auto" style={{ color: 'var(--color-primary)' }} />
+                  <p className="text-sm font-semibold text-gray-800">{fmtUtc(selectedService.scheduledStart!)}</p>
+                  <p className="text-xs text-gray-400">Bu ders sabit tarihe sahip</p>
+                </div>
+              ) : providerId ? (
+                <SlotPicker
+                  providerId={providerId}
+                  serviceId={serviceId}
+                  durationMinutes={selectedService.durationMinutes}
+                  selectedStart={selectedStart}
+                  onSelect={(start, label) => {
+                    setSelectedStart(start || null)
+                    setSelectedLabel(label || null)
+                  }}
+                />
+              ) : null
             ) : (
               <div className="py-12 text-center">
                 <CalendarDays size={32} className="text-gray-200 mx-auto mb-3" />
@@ -406,4 +579,3 @@ export default function ManualBookingPage() {
     </div>
   )
 }
-

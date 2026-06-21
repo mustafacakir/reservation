@@ -11,6 +11,7 @@ interface AuthState {
   isAuthenticated: boolean
   setAuth: (data: { userId: string; fullName: string; role: UserRole; accessToken: string; refreshToken: string }) => void
   setTokens: (accessToken: string, refreshToken: string) => void
+  setFullName: (fullName: string) => void
   logout: () => void
 }
 
@@ -29,6 +30,9 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (accessToken, refreshToken) =>
         set({ accessToken, refreshToken }),
+
+      setFullName: (fullName) =>
+        set({ fullName }),
 
       logout: () =>
         set({

@@ -33,34 +33,53 @@ public class InitializePaymentCommandHandler(
         if (service.ProviderId != request.ProviderId)
             throw new ValidationException(["Service does not belong to the specified provider."]);
 
-        var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
+        // Use fixed ScheduledStart for any session type that has one set
+        var effectiveStartUtc = service.ScheduledStart.HasValue
+            ? service.ScheduledStart.Value
+            : request.StartUtc;
 
-        bool hasConflict;
+        var blockMinutes = (service.ScheduledStart.HasValue && service.ScheduledEnd.HasValue)
+            ? (int)(service.ScheduledEnd.Value - service.ScheduledStart.Value).TotalMinutes
+            : service.DurationMinutes;
+
+        int weeks = service.RecurrenceWeeks ?? 1;
+
         if (service.SessionType == Domain.Enums.SessionType.Group && service.MaxParticipants.HasValue)
         {
-            var participantCount = await db.Bookings
-                .CountAsync(b =>
-                    b.ServiceId == service.Id &&
-                    b.Status != BookingStatus.Cancelled &&
-                    b.Status != BookingStatus.NoShow &&
-                    b.StartUtc == request.StartUtc,
-                    cancellationToken);
-            hasConflict = participantCount >= service.MaxParticipants.Value;
+            // Check capacity for each weekly occurrence
+            for (int w = 0; w < weeks; w++)
+            {
+                var slotStart = effectiveStartUtc.AddDays(7 * w);
+                var participantCount = await db.Bookings
+                    .CountAsync(b =>
+                        b.ServiceId == service.Id &&
+                        b.Status != BookingStatus.Cancelled &&
+                        b.Status != BookingStatus.NoShow &&
+                        b.StartUtc == slotStart,
+                        cancellationToken);
+                if (participantCount >= service.MaxParticipants.Value)
+                    throw new SlotNotAvailableException(slotStart);
+            }
         }
         else
         {
-            hasConflict = await db.Bookings
-                .AnyAsync(b =>
-                    b.ProviderId == request.ProviderId &&
-                    b.Status != BookingStatus.Cancelled &&
-                    b.Status != BookingStatus.NoShow &&
-                    b.StartUtc < endUtc &&
-                    b.EndUtc > request.StartUtc,
-                    cancellationToken);
+            // Individual: check no overlap for any of the recurring weeks
+            for (int w = 0; w < weeks; w++)
+            {
+                var slotStart = effectiveStartUtc.AddDays(7 * w);
+                var slotEnd = slotStart.AddMinutes(blockMinutes);
+                var hasConflict = await db.Bookings
+                    .AnyAsync(b =>
+                        b.ProviderId == request.ProviderId &&
+                        b.Status != BookingStatus.Cancelled &&
+                        b.Status != BookingStatus.NoShow &&
+                        b.StartUtc < slotEnd &&
+                        b.EndUtc > slotStart,
+                        cancellationToken);
+                if (hasConflict)
+                    throw new SlotNotAvailableException(slotStart);
+            }
         }
-
-        if (hasConflict)
-            throw new SlotNotAvailableException(request.StartUtc);
 
         var merchantOrderId = Guid.NewGuid().ToString("N");
 
@@ -84,7 +103,7 @@ public class InitializePaymentCommandHandler(
 
         await pendingStore.StoreAsync(
             gatewayResult.PendingKey,
-            new PendingPaymentData(userId, tenantId, service.Id, request.ProviderId, request.StartUtc, request.ClientNotes),
+            new PendingPaymentData(userId, tenantId, service.Id, request.ProviderId, effectiveStartUtc, request.ClientNotes),
             TimeSpan.FromMinutes(30),
             cancellationToken);
 

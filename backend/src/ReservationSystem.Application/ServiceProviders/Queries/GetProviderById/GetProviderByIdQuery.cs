@@ -19,7 +19,9 @@ public record ProviderDetailDto(
     decimal AverageRating,
     int TotalReviews,
     bool IsAcceptingClients,
-    List<ServiceDto> Services);
+    List<ServiceDto> Services,
+    string? InstagramUrl = null,
+    string? LinkedInUrl = null);
 
 public record ServiceDto(
     Guid Id,
@@ -29,7 +31,10 @@ public record ServiceDto(
     decimal Price,
     string Currency,
     string SessionType,
-    int? MaxParticipants);
+    int? MaxParticipants,
+    int? RecurrenceWeeks = null,
+    DateTimeOffset? ScheduledStart = null,
+    DateTimeOffset? ScheduledEnd = null);
 
 public class GetProviderByIdQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetProviderByIdQuery, ProviderDetailDto>
@@ -61,7 +66,9 @@ public class GetProviderByIdQueryHandler(IApplicationDbContext db)
                 .Select(s => new ServiceDto(
                     s.Id, s.Name, s.Description,
                     s.DurationMinutes, s.Price, s.Currency,
-                    s.SessionType.ToString(), s.MaxParticipants))
-                .ToList());
+                    s.SessionType.ToString(), s.MaxParticipants, s.RecurrenceWeeks, s.ScheduledStart, s.ScheduledEnd))
+                .ToList(),
+            provider.InstagramUrl,
+            provider.LinkedInUrl);
     }
 }

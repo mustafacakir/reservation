@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Users, User, Pencil, Trash2, X, Clock, Tag } from 'lucide-react'
+import { Plus, BookOpen, Users, User, Pencil, Trash2, X, Clock, Tag, Video } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import type { ServiceItem } from '@/types/provider.types'
 
@@ -12,10 +12,37 @@ function toHHMM(totalMinutes: number): string {
 
 interface ServiceForm {
   name: string; description: string; durationMinutes: number
-  price: number; currency: string; sessionType: 'Individual' | 'Group'; maxParticipants: number | null
+  price: number; currency: string; sessionType: 'Individual' | 'Group'
+  maxParticipants: number | null; recurrenceWeeks: number | null
+  scheduledStart: string | null  // datetime-local: YYYY-MM-DDTHH:mm
+  scheduledEndTime: string | null  // time only: HH:mm (same day as scheduledStart)
+  zoomLink: string | null
+  zoomMeetingId: string | null
+  zoomPassword: string | null
 }
 
-const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null }
+function utcToDatetimeLocal(utcStr: string): string {
+  const d = new Date(utcStr)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
+function utcToTimeLocal(utcStr: string): string {
+  const d = new Date(utcStr)
+  return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: string) {
+  const [sh, sm] = startStr.split('T')[1]?.split(':').map(Number) ?? [0, 0]
+  const [eh, em] = endTimeStr.split(':').map(Number)
+  const blockMinutes = (eh * 60 + em) - (sh * 60 + sm)
+  if (blockMinutes <= 0) return null
+  const blockPerSession = Math.ceil(durationMinutes / 60) * 60
+  const sessionCount = Math.floor(blockMinutes / blockPerSession)
+  const breakMinutes = blockPerSession - durationMinutes
+  return { blockMinutes, blockPerSession, sessionCount, breakMinutes }
+}
+
+const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null }
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent bg-white transition-colors'
 
 function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
@@ -24,7 +51,7 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
   const [form, setForm] = useState<ServiceForm>(initial)
   const set = (patch: Partial<ServiceForm>) => setForm((f) => ({ ...f, ...patch }))
   const isGroup = form.sessionType === 'Group'
-  const canSave = form.name.trim() && form.price > 0 && (!isGroup || (form.maxParticipants ?? 0) > 0)
+  const canSave = form.name.trim() && form.price >= 0 && (!isGroup || ((form.maxParticipants ?? 0) > 0 && !!form.scheduledStart && !!form.scheduledEndTime))
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-4">
@@ -59,7 +86,7 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
                 <button
                   key={type}
                   type="button"
-                  onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null })}
+                  onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null, recurrenceWeeks: type === 'Individual' ? null : form.recurrenceWeeks })}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
                     active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'
                   }`}
@@ -82,6 +109,80 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
           </div>
         )}
 
+        {/* Schedule (group: required; individual: optional) */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              Tarih ve Başlangıç Saati {isGroup ? '*' : <span className="font-normal normal-case text-gray-400">(isteğe bağlı)</span>}
+            </label>
+            <input
+              type="datetime-local"
+              value={form.scheduledStart ?? ''}
+              onChange={(e) => set({ scheduledStart: e.target.value || null })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              Bitiş Saati {isGroup ? '*' : ''}
+            </label>
+            <input
+              type="time"
+              value={form.scheduledEndTime ?? ''}
+              onChange={(e) => set({ scheduledEndTime: e.target.value || null })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+        {isGroup && (() => {
+          if (!form.scheduledStart || !form.scheduledEndTime) return null
+          const info = groupBlockInfo(form.durationMinutes, form.scheduledStart, form.scheduledEndTime)
+          if (!info || info.sessionCount <= 0) return (
+            <p className="text-xs text-red-500">Bitiş saati başlangıçtan sonra olmalı.</p>
+          )
+          return (
+            <div className="px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-800">
+              <strong>{info.sessionCount} seans</strong> × {form.durationMinutes} dk
+              {info.breakMinutes > 0 && <> (aralarında {info.breakMinutes} dk mola)</>}
+              {' '}→ toplam {info.blockMinutes} dk
+            </div>
+          )
+        })()}
+        {isGroup && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kaç Hafta Tekrarlansın?</label>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => set({ recurrenceWeeks: null })}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${!form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
+                style={!form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}
+              >
+                Tek seferlik
+              </button>
+              <button
+                type="button"
+                onClick={() => set({ recurrenceWeeks: 4 })}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
+                style={form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}
+              >
+                Haftalık tekrar
+              </button>
+            </div>
+            {form.recurrenceWeeks && (
+              <>
+                <input
+                  type="number" min={2} max={52}
+                  value={form.recurrenceWeeks}
+                  onChange={(e) => set({ recurrenceWeeks: parseInt(e.target.value) || 4 })}
+                  className={inputCls}
+                />
+                <p className="text-xs text-gray-400 mt-1">Her hafta aynı saatte {form.recurrenceWeeks} hafta tekrarlanır.</p>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Duration + Price */}
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -99,6 +200,47 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ücret (₺) *</label>
             <input type="number" value={form.price} onChange={(e) => set({ price: parseFloat(e.target.value) || 0 })} className={inputCls} />
+          </div>
+        </div>
+
+        {/* Zoom bilgileri */}
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Video size={14} style={{ color: 'var(--color-primary)' }} />
+            <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Zoom Bilgileri</span>
+            <span className="text-[10px] text-gray-400 font-normal normal-case">(isteğe bağlı — rezervasyon onayında öğrenciye gönderilir)</span>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Meeting Linki</label>
+            <input
+              type="url"
+              value={form.zoomLink ?? ''}
+              onChange={(e) => set({ zoomLink: e.target.value || null })}
+              placeholder="https://zoom.us/j/..."
+              className={inputCls}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Meeting ID</label>
+              <input
+                type="text"
+                value={form.zoomMeetingId ?? ''}
+                onChange={(e) => set({ zoomMeetingId: e.target.value || null })}
+                placeholder="123 456 7890"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Şifre</label>
+              <input
+                type="text"
+                value={form.zoomPassword ?? ''}
+                onChange={(e) => set({ zoomPassword: e.target.value || null })}
+                placeholder="abc123"
+                className={inputCls}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -131,12 +273,26 @@ export default function MyServicesPage() {
     queryFn: () => apiClient.get('/services/me').then((r) => r.data),
   })
 
+  const toPayload = (f: ServiceForm) => {
+    let scheduledEnd: string | null = null
+    if (f.scheduledStart && f.scheduledEndTime) {
+      const datePart = f.scheduledStart.split('T')[0]
+      scheduledEnd = new Date(`${datePart}T${f.scheduledEndTime}`).toISOString()
+    }
+    return {
+      ...f,
+      scheduledStart: f.scheduledStart ? new Date(f.scheduledStart).toISOString() : null,
+      scheduledEnd,
+      scheduledEndTime: undefined,  // not a backend field
+    }
+  }
+
   const createMutation = useMutation({
-    mutationFn: (f: ServiceForm) => apiClient.post('/services', f).then((r) => r.data),
+    mutationFn: (f: ServiceForm) => apiClient.post('/services', toPayload(f)).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setShowCreate(false) },
   })
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...f }: ServiceForm & { id: string }) => apiClient.put(`/services/${id}`, f).then((r) => r.data),
+    mutationFn: ({ id, ...f }: ServiceForm & { id: string }) => apiClient.put(`/services/${id}`, toPayload(f)).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setEditingId(null) },
   })
   const deleteMutation = useMutation({
@@ -172,7 +328,7 @@ export default function MyServicesPage() {
             <ServiceFormPanel
               key={s.id}
               title="Dersi Düzenle"
-              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: (s as any).sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: (s as any).maxParticipants ?? null }}
+              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: s.sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: s.maxParticipants ?? null, recurrenceWeeks: s.recurrenceWeeks ?? null, scheduledStart: s.scheduledStart ? utcToDatetimeLocal(s.scheduledStart) : null, scheduledEndTime: s.scheduledEnd ? utcToTimeLocal(s.scheduledEnd) : null, zoomLink: s.zoomLink ?? null, zoomMeetingId: s.zoomMeetingId ?? null, zoomPassword: s.zoomPassword ?? null }}
               onSave={(f) => updateMutation.mutate({ id: s.id, ...f })}
               onCancel={() => setEditingId(null)}
               isPending={updateMutation.isPending}
@@ -220,6 +376,19 @@ export default function MyServicesPage() {
                           {(s as any).sessionType === 'Group' && (s as any).maxParticipants && (
                             <span className="flex items-center gap-1 text-xs text-gray-400">
                               <Users size={10} /> {(s as any).totalBookings ?? 0}/{(s as any).maxParticipants} kişi
+                            </span>
+                          )}
+                          {(s as any).scheduledStart && (
+                            <span className="flex items-center gap-1 text-xs text-gray-400">
+                              {new Date((s as any).scheduledStart).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                              {' '}{new Date((s as any).scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                              {(s as any).scheduledEnd && `–${new Date((s as any).scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`}
+                              {(s as any).recurrenceWeeks && ` · ${(s as any).recurrenceWeeks} hafta`}
+                            </span>
+                          )}
+                          {s.zoomLink && (
+                            <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
+                              <Video size={10} /> Zoom bağlı
                             </span>
                           )}
                           {s.description && (

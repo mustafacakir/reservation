@@ -1,25 +1,22 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ReservationSystem.Application.Bookings.Commands.CreateBooking;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
 using ReservationSystem.Domain.Enums;
 using ReservationSystem.Domain.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace ReservationSystem.Application.Bookings.Commands.CreateManualBooking;
 
-/// <summary>
-/// Allows a ServiceProvider to manually add a booking on behalf of a student
-/// (e.g. a student who booked via WhatsApp). The provider's own userId is used
-/// as clientId; studentName is stored in ClientNotes.
-/// </summary>
 public record CreateManualBookingCommand(
     Guid ServiceId,
     DateTimeOffset StartUtc,
     string StudentName,
-    string? Notes
+    string? Notes,
+    bool GeneratePaymentLink = false,
+    string? StudentEmail = null
 ) : IRequest<BookingDto>;
 
 public class CreateManualBookingCommandHandler(
@@ -45,21 +42,21 @@ public class CreateManualBookingCommandHandler(
             .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.ProviderId == provider.Id && s.IsActive, cancellationToken)
             ?? throw new NotFoundException("Service", request.ServiceId);
 
-        var endUtc = request.StartUtc.AddMinutes(service.DurationMinutes);
+        var effectiveStart = service.ScheduledStart ?? request.StartUtc;
+        var endUtc = service.ScheduledEnd ?? effectiveStart.AddMinutes(service.DurationMinutes);
 
         if (service.SessionType == SessionType.Group)
         {
-            var participantCount = await db.Bookings
+            var count = await db.Bookings
                 .CountAsync(b =>
                     b.ServiceId == service.Id &&
-                    b.StartUtc == request.StartUtc &&
+                    b.StartUtc == effectiveStart &&
                     b.Status != BookingStatus.Cancelled &&
                     b.Status != BookingStatus.NoShow,
                     cancellationToken);
 
-            if (participantCount >= service.MaxParticipants)
-                throw new ConflictException(
-                    $"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+            if (count >= service.MaxParticipants)
+                throw new ConflictException($"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
         }
         else
         {
@@ -69,48 +66,74 @@ public class CreateManualBookingCommandHandler(
                     b.Status != BookingStatus.Cancelled &&
                     b.Status != BookingStatus.NoShow &&
                     b.StartUtc < endUtc &&
-                    b.EndUtc > request.StartUtc,
+                    b.EndUtc > effectiveStart,
                     cancellationToken);
 
             if (hasConflict)
-                throw new SlotNotAvailableException(request.StartUtc);
+                throw new SlotNotAvailableException(effectiveStart);
         }
 
         var clientNotes = string.IsNullOrWhiteSpace(request.Notes)
             ? $"Öğrenci: {request.StudentName}"
             : $"Öğrenci: {request.StudentName} — {request.Notes}";
 
-        // Use provider's own userId as clientId for manual bookings
         var booking = Booking.Create(
             tenantId, service.Id, provider.Id, userId,
-            request.StartUtc, endUtc, service.Price, service.Currency,
+            effectiveStart, endUtc, service.Price, service.Currency,
             clientNotes);
 
-        // Auto-confirm manual bookings
-        booking.Confirm();
+        string? paymentLinkToken = null;
+        if (request.GeneratePaymentLink && service.Price > 0)
+        {
+            paymentLinkToken = Guid.NewGuid().ToString("N")[..24];
+            booking.SetPaymentLinkToken(paymentLinkToken);
+            // stays Pending — student must pay via link
+        }
+        else
+        {
+            booking.Confirm();
+        }
 
         await db.Bookings.AddAsync(booking, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        // Fire-and-forget email (manual booking has no client email)
-        _ = Task.Run(async () =>
+        if (request.GeneratePaymentLink && paymentLinkToken is not null && !string.IsNullOrWhiteSpace(request.StudentEmail))
         {
-            try
+            _ = Task.Run(async () =>
             {
-                await emailService.SendBookingConfirmationAsync(new BookingEmailData(
-                    booking.Id, service.Name,
-                    provider.User.FullName, provider.User.Email,
-                    request.StudentName, null,
-                    booking.StartUtc, booking.EndUtc));
-            }
-            catch (Exception ex) { logger.LogError(ex, "Manual booking confirmation email failed"); }
-        }, CancellationToken.None);
+                try
+                {
+                    await emailService.SendPaymentLinkAsync(new BookingEmailData(
+                        booking.Id, service.Name,
+                        provider.User.FullName, provider.User.Email,
+                        request.StudentName, request.StudentEmail,
+                        booking.StartUtc, booking.EndUtc), paymentLinkToken);
+                }
+                catch (Exception ex) { logger.LogError(ex, "Payment link email failed"); }
+            }, CancellationToken.None);
+        }
+        else if (!request.GeneratePaymentLink)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await emailService.SendBookingConfirmationAsync(new BookingEmailData(
+                        booking.Id, service.Name,
+                        provider.User.FullName, provider.User.Email,
+                        request.StudentName, request.StudentEmail,
+                        booking.StartUtc, booking.EndUtc,
+                        service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword));
+                }
+                catch (Exception ex) { logger.LogError(ex, "Manual booking confirmation email failed"); }
+            }, CancellationToken.None);
+        }
 
         return new BookingDto(
             booking.Id, service.Id, service.Name,
             provider.Id, provider.User.FullName,
             booking.StartUtc, booking.EndUtc,
             booking.Status.ToString(), booking.Price, booking.Currency,
-            booking.ClientNotes);
+            booking.ClientNotes, null, paymentLinkToken);
     }
 }

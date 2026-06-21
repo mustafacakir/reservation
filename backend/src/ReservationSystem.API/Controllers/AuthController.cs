@@ -1,6 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ReservationSystem.Application.Common.Exceptions;
+using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.Users.Commands.LoginUser;
 using ReservationSystem.Application.Users.Commands.RefreshToken;
 using ReservationSystem.Application.Users.Commands.RegisterUser;
@@ -10,7 +13,7 @@ namespace ReservationSystem.API.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public class AuthController(IMediator mediator) : ControllerBase
+public class AuthController(IMediator mediator, IApplicationDbContext db, ICurrentUserService currentUser) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command, CancellationToken ct)
@@ -31,6 +34,16 @@ public class AuthController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(command, ct);
         return Ok(result);
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetProfile(CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedException();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
+            ?? throw new NotFoundException("User", userId);
+        return Ok(new { user.FullName, user.Email, user.IsEmailSubscribed });
     }
 
     [HttpPut("me")]

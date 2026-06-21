@@ -18,9 +18,9 @@ public class UpdateUserProfileCommandHandler(
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
             ?? throw new NotFoundException("User", userId);
 
-        user.UpdateProfile(request.FirstName, request.LastName, user.AvatarUrl);
+        user.UpdateProfile(request.FirstName, request.LastName, user.AvatarUrl, request.IsEmailSubscribed);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UpdateUserProfileResult(user.FullName);
+        return new UpdateUserProfileResult(user.FullName, user.IsEmailSubscribed);
     }
 }

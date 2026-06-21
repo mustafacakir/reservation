@@ -18,7 +18,13 @@ public record ServiceDto(
     bool IsActive,
     string SessionType,
     int? MaxParticipants,
-    int TotalBookings
+    int TotalBookings,
+    int? RecurrenceWeeks = null,
+    DateTimeOffset? ScheduledStart = null,
+    DateTimeOffset? ScheduledEnd = null,
+    string? ZoomLink = null,
+    string? ZoomMeetingId = null,
+    string? ZoomPassword = null
 );
 
 public class GetMyServicesQueryHandler(
@@ -50,7 +56,13 @@ public class GetMyServicesQueryHandler(
                 db.Bookings.Count(b =>
                     b.ServiceId == s.Id &&
                     b.Status != BookingStatus.Cancelled &&
-                    b.Status != BookingStatus.NoShow)
+                    b.Status != BookingStatus.NoShow),
+                s.RecurrenceWeeks,
+                s.ScheduledStart,
+                s.ScheduledEnd,
+                s.ZoomLink,
+                s.ZoomMeetingId,
+                s.ZoomPassword
             ))
             .ToListAsync(cancellationToken);
     }

@@ -8,7 +8,10 @@ public record BookingEmailData(
     string ClientName,
     string? ClientEmail,
     DateTimeOffset StartUtc,
-    DateTimeOffset EndUtc
+    DateTimeOffset EndUtc,
+    string? ZoomLink = null,
+    string? ZoomMeetingId = null,
+    string? ZoomPassword = null
 );
 
 public interface IEmailService
@@ -16,4 +19,5 @@ public interface IEmailService
     Task SendBookingConfirmationAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendBookingCancellationAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendBookingReminderAsync(BookingEmailData data, CancellationToken ct = default);
+    Task SendPaymentLinkAsync(BookingEmailData data, string paymentLinkToken, CancellationToken ct = default);
 }

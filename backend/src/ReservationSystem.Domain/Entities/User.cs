@@ -13,6 +13,7 @@ public class User : BaseEntity, ITenantEntity
     public string? AvatarUrl { get; private set; }
     public UserRole Role { get; private set; }
     public bool IsEmailVerified { get; private set; }
+    public bool IsEmailSubscribed { get; private set; }
     public string? RefreshToken { get; private set; }
     public DateTimeOffset? RefreshTokenExpiresAt { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
@@ -26,7 +27,7 @@ public class User : BaseEntity, ITenantEntity
     private User() { }
 
     public static User Create(Guid tenantId, string email, string passwordHash,
-        string firstName, string lastName, UserRole role)
+        string firstName, string lastName, UserRole role, bool isEmailSubscribed = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
@@ -38,15 +39,17 @@ public class User : BaseEntity, ITenantEntity
             PasswordHash = passwordHash,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
-            Role = role
+            Role = role,
+            IsEmailSubscribed = isEmailSubscribed,
         };
     }
 
-    public void UpdateProfile(string firstName, string lastName, string? avatarUrl)
+    public void UpdateProfile(string firstName, string lastName, string? avatarUrl, bool isEmailSubscribed)
     {
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
         AvatarUrl = avatarUrl;
+        IsEmailSubscribed = isEmailSubscribed;
         SetUpdatedAt();
     }
 

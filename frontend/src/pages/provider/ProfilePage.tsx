@@ -17,6 +17,8 @@ interface ProfileForm {
   specializations: string[]
   hourlyRate: string
   currency: string
+  instagramUrl: string
+  linkedInUrl: string
 }
 
 export default function ProfilePage() {
@@ -32,6 +34,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState<ProfileForm>({
     firstName: '', lastName: '', avatarUrl: '',
     bio: '', specializations: [], hourlyRate: '', currency: 'TRY',
+    instagramUrl: '', linkedInUrl: '',
   })
 
   const editor = useEditor({
@@ -62,6 +65,8 @@ export default function ProfilePage() {
         specializations: data.specializations ?? [],
         hourlyRate: data.hourlyRate?.toString() ?? '',
         currency: data.currency ?? 'TRY',
+        instagramUrl: data.instagramUrl ?? '',
+        linkedInUrl: data.linkedInUrl ?? '',
       })
       if (editor && bio) {
         editor.commands.setContent(bio)
@@ -79,6 +84,8 @@ export default function ProfilePage() {
         avatarUrl: f.avatarUrl || null,
         hourlyRate: f.hourlyRate ? parseFloat(f.hourlyRate) : null,
         currency: f.currency || 'TRY',
+        instagramUrl: f.instagramUrl.trim() || null,
+        linkedInUrl: f.linkedInUrl.trim() || null,
       }),
     onSuccess: () => {
       formInitialized.current = false
@@ -196,6 +203,26 @@ export default function ProfilePage() {
               value={form.hourlyRate}
               onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))}
               placeholder="ör. 300"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Instagram (isteğe bağlı)</label>
+            <input
+              value={form.instagramUrl}
+              onChange={(e) => setForm((f) => ({ ...f, instagramUrl: e.target.value }))}
+              placeholder="https://instagram.com/kullaniciadiniz"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn (isteğe bağlı)</label>
+            <input
+              value={form.linkedInUrl}
+              onChange={(e) => setForm((f) => ({ ...f, linkedInUrl: e.target.value }))}
+              placeholder="https://linkedin.com/in/kullaniciadiniz"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
               style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
             />

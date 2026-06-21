@@ -15,7 +15,13 @@ public record UpdateServiceCommand(
     decimal Price,
     string Currency,
     string SessionType = "Individual",
-    int? MaxParticipants = null
+    int? MaxParticipants = null,
+    int? RecurrenceWeeks = null,
+    DateTimeOffset? ScheduledStart = null,
+    DateTimeOffset? ScheduledEnd = null,
+    string? ZoomLink = null,
+    string? ZoomMeetingId = null,
+    string? ZoomPassword = null
 ) : IRequest<ServiceDto>;
 
 public class UpdateServiceCommandHandler(
@@ -42,7 +48,11 @@ public class UpdateServiceCommandHandler(
             request.Name, request.Description, request.DurationMinutes,
             request.Price, string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency,
             60, sessionType,
-            sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null);
+            sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null,
+            sessionType == Domain.Enums.SessionType.Group ? request.RecurrenceWeeks : null,
+            request.ScheduledStart,
+            request.ScheduledEnd,
+            request.ZoomLink, request.ZoomMeetingId, request.ZoomPassword);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -53,6 +63,8 @@ public class UpdateServiceCommandHandler(
 
         return new ServiceDto(service.Id, service.Name, service.Description,
             service.DurationMinutes, service.Price, service.Currency, service.IsActive,
-            service.SessionType.ToString(), service.MaxParticipants, totalBookings);
+            service.SessionType.ToString(), service.MaxParticipants, totalBookings,
+            service.RecurrenceWeeks, service.ScheduledStart, service.ScheduledEnd,
+            service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword);
     }
 }

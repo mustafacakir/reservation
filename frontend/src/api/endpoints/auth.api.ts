@@ -2,7 +2,7 @@ import { apiClient } from '../client'
 import type { LoginResult, RegisterResult } from '@/types/auth.types'
 
 export const authApi = {
-  register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
+  register: (data: { email: string; password: string; firstName: string; lastName: string; isEmailSubscribed: boolean }) =>
     apiClient.post<RegisterResult>('/auth/register', data).then((r) => r.data),
 
   login: (data: { email: string; password: string }) =>
@@ -13,6 +13,6 @@ export const authApi = {
 
   logout: () => apiClient.post('/auth/logout').then((r) => r.data),
 
-  updateProfile: (data: { firstName: string; lastName: string }) =>
-    apiClient.put<{ fullName: string }>('/auth/me', data).then((r) => r.data),
+  updateProfile: (data: { firstName: string; lastName: string; isEmailSubscribed: boolean }) =>
+    apiClient.put<{ fullName: string; isEmailSubscribed: boolean }>('/auth/me', data).then((r) => r.data),
 }

@@ -9,4 +9,5 @@ public class EmailSettings
     public string FromEmail { get; set; } = "noreply@example.com";
     public string FromName { get; set; } = "Randevu Sistemi";
     public bool Enabled { get; set; } = true;
+    public string AppBaseUrl { get; set; } = "https://sevdailematematik.com";
 }

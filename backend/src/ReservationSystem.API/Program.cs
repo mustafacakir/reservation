@@ -9,10 +9,14 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // Serilog
+var seqUrl = builder.Configuration["Seq:ServerUrl"];
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "ReservationAPI")
     .WriteTo.Console()
+    .WriteTo.Seq(seqUrl ?? "http://seq")
     .CreateLogger();
 
 builder.Host.UseSerilog();

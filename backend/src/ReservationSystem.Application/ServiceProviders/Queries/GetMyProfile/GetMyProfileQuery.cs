@@ -12,5 +12,7 @@ public record MyProfileDto(
     string Bio,
     List<string> Specializations,
     decimal? HourlyRate,
-    string Currency
+    string Currency,
+    string? InstagramUrl,
+    string? LinkedInUrl
 );

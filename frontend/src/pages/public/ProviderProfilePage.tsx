@@ -1,7 +1,27 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
-import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard } from 'lucide-react'
+import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
+
+function InstagramIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function LinkedInIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
+  )
+}
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -190,6 +210,139 @@ function SlotPicker({
         <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
           <Clock size={11} /> Her ders {durationMinutes} dakika
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Weekly Schedule ───────────────────────────────────────────────────────────
+
+function WeeklySchedule({ services, onSelect }: { services: any[]; onSelect: (id: string) => void }) {
+  const fixed = services.filter((s) => s.scheduledStart)
+  if (fixed.length === 0) return null
+
+  const HOUR_PX = 64
+  const DAY = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+
+  const PALETTES = [
+    { bg: 'var(--color-primary-light)', fg: 'var(--color-primary)', bd: 'var(--color-primary)' },
+    { bg: '#fef3c7', fg: '#b45309', bd: '#f59e0b' },
+    { bg: '#dcfce7', fg: '#15803d', bd: '#22c55e' },
+    { bg: '#fce7f3', fg: '#be185d', bd: '#ec4899' },
+  ]
+
+  const events = fixed.map((s, i) => {
+    const st = new Date(s.scheduledStart)
+    const en = s.scheduledEnd ? new Date(s.scheduledEnd) : new Date(st.getTime() + s.durationMinutes * 60000)
+    const dow = (st.getDay() + 6) % 7
+    const startH = st.getHours() + st.getMinutes() / 60
+    const endH = en.getHours() + en.getMinutes() / 60
+    const tStart = st.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    const tEnd = en.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    return { s, dow, startH, endH, tStart, tEnd, pal: PALETTES[i % PALETTES.length] }
+  })
+
+  const minH = Math.max(6, Math.floor(Math.min(...events.map((e) => e.startH))) - 1)
+  const maxH = Math.min(23, Math.ceil(Math.max(...events.map((e) => e.endH))) + 1)
+  const hours = Array.from({ length: maxH - minH + 1 }, (_, i) => minH + i)
+  const totalH = (maxH - minH) * HOUR_PX
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-4">
+      <h2 className="font-semibold text-gray-900 mb-1">Haftalık Program</h2>
+      <p className="text-xs text-gray-400 mb-4">Derse katılmak için bloğa tıklayın</p>
+      <div className="overflow-x-auto -mx-2 px-2">
+        <div className="min-w-[480px]">
+          {/* Day headers */}
+          <div className="flex pl-10 mb-2 gap-px">
+            {DAY.map((d, i) => {
+              const hasEvent = events.some((e) => e.dow === i)
+              return (
+                <div
+                  key={d}
+                  className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg"
+                  style={
+                    hasEvent
+                      ? { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                      : { color: '#d1d5db' }
+                  }
+                >
+                  {d}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Grid */}
+          <div className="flex" style={{ height: totalH }}>
+            {/* Hour labels */}
+            <div className="w-10 flex-shrink-0 relative select-none">
+              {hours.map((h) => (
+                <div
+                  key={h}
+                  className="absolute right-2 text-[10px] text-gray-400 leading-none"
+                  style={{ top: (h - minH) * HOUR_PX - 6 }}
+                >
+                  {String(h).padStart(2, '0')}:00
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {Array.from({ length: 7 }, (_, di) => (
+              <div
+                key={di}
+                className="flex-1 relative"
+                style={{ borderLeft: di > 0 ? '1px solid #f3f4f6' : undefined }}
+              >
+                {hours.map((h) => (
+                  <div
+                    key={h}
+                    className="absolute left-0 right-0"
+                    style={{ top: (h - minH) * HOUR_PX, borderTop: '1px solid #f3f4f6' }}
+                  />
+                ))}
+                {events
+                  .filter((e) => e.dow === di)
+                  .map((e, j) => (
+                    <button
+                      key={j}
+                      className="absolute left-1 right-1 rounded-xl px-2 py-2 text-left overflow-hidden transition-all hover:brightness-95 active:scale-[.98] shadow-sm"
+                      style={{
+                        top: (e.startH - minH) * HOUR_PX + 2,
+                        height: (e.endH - e.startH) * HOUR_PX - 4,
+                        background: e.pal.bg,
+                        border: `1.5px solid ${e.pal.bd}`,
+                      }}
+                      onClick={() => onSelect(e.s.id)}
+                    >
+                      <p
+                        className="text-[11px] font-bold leading-tight truncate"
+                        style={{ color: e.pal.fg }}
+                      >
+                        {e.s.name}
+                      </p>
+                      <p
+                        className="text-[10px] leading-tight mt-0.5"
+                        style={{ color: e.pal.fg, opacity: 0.85 }}
+                      >
+                        {e.tStart} – {e.tEnd}
+                      </p>
+                      {e.s.maxParticipants && (
+                        <p
+                          className="text-[9px] leading-tight mt-0.5"
+                          style={{ color: e.pal.fg, opacity: 0.65 }}
+                        >
+                          Maks. {e.s.maxParticipants} kişi
+                          {e.s.recurrenceWeeks && e.s.recurrenceWeeks > 1 ? ` · ${e.s.recurrenceWeeks} hafta` : ''}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -426,6 +579,8 @@ export default function ProviderProfilePage() {
   const [iframeToken, setIframeToken] = useState<string | null>(null)
   const [ktFormContent, setKtFormContent] = useState<string | null>(null)
   const [showCardForm, setShowCardForm] = useState(false)
+  const [bookingSuccess, setBookingSuccess] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState(false)
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', id, slug],
@@ -441,7 +596,7 @@ export default function ProviderProfilePage() {
         '/payments/initialize', {
           serviceId: selectedServiceId,
           providerId: provider?.id,
-          startUtc: selectedSlotStart,
+          startUtc: isSelectedFixed ? selectedService!.scheduledStart : selectedSlotStart,
           clientNotes: clientNotes.trim() || undefined,
           cardNumber: card.cardNumber,
           cardHolderName: card.cardHolderName,
@@ -464,7 +619,10 @@ export default function ProviderProfilePage() {
       const firstError = errors[0] ?? ''
       const msg = detail || firstError || 'Ödeme başlatılamadı. Lütfen tekrar deneyin.'
 
-      if (err?.response?.status === 400 && (msg.toLowerCase().includes('müsait') || msg.toLowerCase().includes('slot'))) {
+      if (err?.response?.status === 409) {
+        setShowCardForm(false)
+        setDuplicateWarning(true)
+      } else if (err?.response?.status === 400 && (msg.toLowerCase().includes('müsait') || msg.toLowerCase().includes('slot'))) {
         setShowCardForm(false)
         setSelectedSlotStart(null)
         setSelectedSlotLabel(null)
@@ -475,12 +633,39 @@ export default function ProviderProfilePage() {
     },
   })
 
+  const isSelectedFixed = !!selectedService?.scheduledStart
+  const isSelectedFree = (selectedService?.price ?? 1) === 0
+
+  const freeBookMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post('/bookings', {
+        serviceId: selectedServiceId,
+        providerId: provider?.id,
+        startUtc: isSelectedFixed ? selectedService!.scheduledStart : selectedSlotStart,
+        clientNotes: clientNotes.trim() || undefined,
+      }).then(r => r.data),
+    onSuccess: () => setBookingSuccess(true),
+    onError: (err: any) => {
+      if (err?.response?.status === 409) {
+        setDuplicateWarning(true)
+      } else {
+        const msg = err?.response?.data?.detail ?? err?.response?.data?.errors?.[0] ?? 'Rezervasyon oluşturulamadı.'
+        toast.error(msg)
+      }
+    },
+  })
+
   const handlePay = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } })
       return
     }
-    if (!selectedServiceId || !selectedSlotStart || !provider) return
+    if (!selectedServiceId || !provider) return
+    if (!isSelectedFixed && !selectedSlotStart) return
+    if (isSelectedFree) {
+      freeBookMutation.mutate()
+      return
+    }
     setShowCardForm(true)
   }
 
@@ -519,8 +704,19 @@ export default function ProviderProfilePage() {
     isAuthenticated,
     clientNotes,
     setClientNotes,
-    isPayLoading: payMutation.isPending,
+    isPayLoading: payMutation.isPending || freeBookMutation.isPending,
     handlePay,
+    isSelectedFree,
+    bookingSuccess,
+    duplicateWarning,
+    onResetBooking: () => {
+      setBookingSuccess(false)
+      setDuplicateWarning(false)
+      setSelectedServiceId(null)
+      setSelectedSlotStart(null)
+      setSelectedSlotLabel(null)
+      setClientNotes('')
+    },
   }
 
   if (showCardForm && selectedService) {
@@ -590,6 +786,32 @@ export default function ProviderProfilePage() {
                   ))}
                 </div>
               )}
+
+              {/* Social links */}
+              {(provider.instagramUrl || provider.linkedInUrl) && (
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+                  {provider.instagramUrl && (
+                    <a
+                      href={provider.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50 transition-colors"
+                    >
+                      <InstagramIcon size={15} /> Instagram
+                    </a>
+                  )}
+                  {provider.linkedInUrl && (
+                    <a
+                      href={provider.linkedInUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <LinkedInIcon size={15} /> LinkedIn
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Bio */}
@@ -602,6 +824,7 @@ export default function ProviderProfilePage() {
                 />
               </div>
             )}
+
 
             {/* Mobile booking panel */}
             <div className="lg:hidden mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -634,6 +857,7 @@ function BookingPanel({
   provider, selectedServiceId, setSelectedServiceId,
   selectedSlotStart, selectedSlotLabel, setSelectedSlotStart, setSelectedSlotLabel,
   selectedService, isAuthenticated, clientNotes, setClientNotes, isPayLoading, handlePay,
+  isSelectedFree, bookingSuccess, duplicateWarning, onResetBooking,
 }: {
   provider: any
   selectedServiceId: string | null
@@ -648,8 +872,52 @@ function BookingPanel({
   setClientNotes: (v: string) => void
   isPayLoading: boolean
   handlePay: () => void
+  isSelectedFree: boolean
+  bookingSuccess: boolean
+  duplicateWarning: boolean
+  onResetBooking: () => void
 }) {
-  const slotReady = !!selectedServiceId && !!selectedSlotStart
+  const isFixed = (service: any) => !!service?.scheduledStart
+  const slotReady = !!selectedServiceId && (!!selectedSlotStart || isFixed(selectedService))
+
+  const formatGroupSchedule = (service: any) => {
+    if (!service?.scheduledStart) return { datePart: '', timePart: '', info: '' }
+    const start = new Date(service.scheduledStart)
+    const datePart = start.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const startTime = start.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    if (service.scheduledEnd) {
+      const end = new Date(service.scheduledEnd)
+      const endTime = end.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      const blockMinutes = Math.round((end.getTime() - start.getTime()) / 60000)
+      const blockPerSession = Math.ceil(service.durationMinutes / 60) * 60
+      const sessionCount = Math.floor(blockMinutes / blockPerSession)
+      const breakMinutes = blockPerSession - service.durationMinutes
+      const info = `${sessionCount} seans × ${service.durationMinutes} dk${breakMinutes > 0 ? ` (${breakMinutes} dk mola)` : ''}`
+      return { datePart, timePart: `${startTime} – ${endTime}`, info }
+    }
+    return { datePart, timePart: startTime, info: `${service.durationMinutes} dk` }
+  }
+
+  if (bookingSuccess) {
+    return (
+      <div className="space-y-4 text-center py-6">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: '#dcfce7' }}>
+          <CheckCircle size={32} style={{ color: '#16a34a' }} />
+        </div>
+        <div>
+          <p className="font-bold text-gray-900 text-base">Rezervasyonunuz Oluşturuldu!</p>
+          <p className="text-sm text-gray-500 mt-1">Onay detayları e-posta adresinize gönderildi.</p>
+        </div>
+        <button
+          onClick={onResetBooking}
+          className="text-sm font-semibold px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          Başka ders seç
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">
@@ -696,10 +964,13 @@ function BookingPanel({
                       {service.sessionType === 'Group' && service.maxParticipants && (
                         <> · Maks. {service.maxParticipants} kişi</>
                       )}
+                      {service.scheduledStart && (
+                        <> · {new Date(service.scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}{service.scheduledEnd ? `–${new Date(service.scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}{service.recurrenceWeeks ? ` · ${service.recurrenceWeeks} hafta` : ''}</>
+                      )}
                     </p>
                   </div>
-                  <span className="text-sm font-bold text-gray-900 flex-shrink-0">
-                    ₺{Number(service.price).toLocaleString('tr-TR')}
+                  <span className="text-sm font-bold flex-shrink-0" style={{ color: Number(service.price) === 0 ? '#16a34a' : '#111827' }}>
+                    {Number(service.price) === 0 ? 'Ücretsiz' : `₺${Number(service.price).toLocaleString('tr-TR')}`}
                   </span>
                 </div>
               </button>
@@ -708,26 +979,62 @@ function BookingPanel({
         </div>
       </div>
 
-      {/* Slot picker */}
+      {/* Slot picker or fixed group schedule */}
       {selectedService && (
         <div className="border-t border-gray-100 pt-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Saat Seç</p>
-          <SlotPicker
-            providerId={provider.id}
-            serviceId={selectedService.id}
-            durationMinutes={selectedService.durationMinutes}
-            selectedSlotStart={selectedSlotStart}
-            onSelect={(start, label) => {
-              setSelectedSlotStart(start || null)
-              setSelectedSlotLabel(label || null)
-            }}
-          />
+          {isFixed(selectedService) ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Ders Takvimi</p>
+              {(() => {
+                const { timePart, info } = formatGroupSchedule(selectedService)
+                const start = new Date(selectedService.scheduledStart)
+                const weeks = selectedService.recurrenceWeeks ?? 1
+                const now = new Date()
+                const dates = Array.from({ length: weeks }, (_, i) => {
+                  const d = new Date(start.getTime() + i * 7 * 24 * 60 * 60 * 1000)
+                  return {
+                    label: d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+                    isPast: d < now,
+                  }
+                })
+                return (
+                  <>
+                    <div className="space-y-1">
+                      {dates.map(({ label, isPast }, i) => (
+                        <div key={i} className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>
+                          <span className="text-[10px] font-bold text-amber-600 w-4 flex-shrink-0 text-right">{i + 1}.</span>
+                          <span className={`text-sm ${isPast ? 'line-through text-gray-500' : 'text-gray-800'}`}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-700 font-semibold pt-1.5 border-t border-amber-100">
+                      {timePart} <span className="text-xs font-normal text-gray-500">({info})</span>
+                    </p>
+                  </>
+                )
+              })()}
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Saat Seç</p>
+              <SlotPicker
+                providerId={provider.id}
+                serviceId={selectedService.id}
+                durationMinutes={selectedService.durationMinutes}
+                selectedSlotStart={selectedSlotStart}
+                onSelect={(start, label) => {
+                  setSelectedSlotStart(start || null)
+                  setSelectedSlotLabel(label || null)
+                }}
+              />
+            </>
+          )}
         </div>
       )}
 
       {/* Notes + pay button */}
       <div className={selectedService ? '' : 'pt-2'}>
-        {selectedSlotLabel && (
+        {selectedSlotLabel && !isFixed(selectedService) && (
           <div className="mb-3 px-3 py-2.5 rounded-xl text-xs text-center font-medium bg-gray-50 border border-gray-100 text-gray-700">
             {selectedSlotLabel}
           </div>
@@ -744,8 +1051,15 @@ function BookingPanel({
           />
         )}
 
+        {duplicateWarning && (
+          <div className="mb-3 flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 font-medium leading-relaxed">Bu derse zaten kayıtlısınız. Aynı derse tekrar rezervasyon yapamazsınız.</p>
+          </div>
+        )}
+
         <button
-          disabled={!selectedServiceId || !selectedSlotStart || isPayLoading}
+          disabled={!slotReady || isPayLoading}
           onClick={handlePay}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-opacity disabled:opacity-40 hover:opacity-90 text-sm"
           style={{ background: 'var(--color-primary)' }}
@@ -756,14 +1070,16 @@ function BookingPanel({
             <><UserCheck size={16} /> Giriş yaparak rezervasyon yap</>
           ) : !selectedServiceId ? (
             'Ders seçin'
-          ) : !selectedSlotStart ? (
-            'Saat seçin'
+          ) : !slotReady ? (
+            isFixed(selectedService) ? 'Ders seçin' : 'Saat seçin'
+          ) : isSelectedFree ? (
+            <><CheckCircle size={16} /> Ücretsiz Rezervasyon Yap</>
           ) : (
-            <><ArrowRight size={16} /> Ödemeye Geç</>
+            <><ArrowRight size={16} /> {isFixed(selectedService) ? 'Katıl' : 'Ödemeye Geç'}</>
           )}
         </button>
 
-        {slotReady && (
+        {slotReady && !isSelectedFree && (
           <p className="text-center text-xs text-gray-400 mt-2 flex items-center justify-center gap-1">
             <ShieldCheck size={11} /> Güvenli ödeme — KuveytTürk 3D Secure
           </p>

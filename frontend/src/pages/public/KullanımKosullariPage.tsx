@@ -2,7 +2,7 @@ export default function KullanımKosullariPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Kullanım Koşulları</h1>
-      <p className="text-sm text-gray-400 mb-10">Son güncelleme: Mart 2025</p>
+      <p className="text-sm text-gray-400 mb-10">Son güncelleme: Haziran 2026</p>
 
       <div className="space-y-8 text-gray-700 text-sm leading-relaxed">
         <section>
@@ -13,7 +13,6 @@ export default function KullanımKosullariPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Üyelik Koşulları</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Platforma kayıt olmak için 18 yaşını doldurmuş olmak veya veli onayı gerekmektedir.</li>
             <li>Hesap bilgilerinin doğru ve güncel tutulmasından kullanıcı sorumludur.</li>
             <li>Hesap güvenliğinizden siz sorumlusunuz; şifrenizi kimseyle paylaşmayınız.</li>
           </ul>
@@ -22,10 +21,9 @@ export default function KullanımKosullariPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">3. Rezervasyon ve Ödeme</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Rezervasyon tamamlandıktan sonra ödeme KuveytTürk Bankası Sanal POS altyapısı üzerinden 3D Secure ile alınır.</li>
-            <li>Öğretmen onayı ile rezervasyon kesinleşir.</li>
-            <li>İptal koşulları: ders başlangıcından en az 24 saat önce yapılan iptal taleplerinde ücret iade edilir.</li>
-            <li>24 saatten az kalan iptal taleplerinde ücret iadesi yapılmaz.</li>
+            <li>Ödeme, KuveytTürk Bankası Sanal POS altyapısı üzerinden 3D Secure ile alınır; ödeme tamamlandığında rezervasyon otomatik olarak onaylanır.</li>
+            <li><strong>Grup dersleri:</strong> Satın alınan grup dersi rezervasyonları kesindir; iptal ve ücret iadesi yapılmaz.</li>
+            <li><strong>Bireysel dersler:</strong> Ücret iadesi yapılmaz. Ders başlangıcından en az 24 saat önce talep edilmesi koşuluyla yalnızca tarih/saat değişikliği yapılabilir. 24 saatten az süre kala tarih değişikliği de kabul edilmez.</li>
           </ul>
         </section>
 

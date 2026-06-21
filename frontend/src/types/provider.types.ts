@@ -14,6 +14,8 @@ export interface ProviderSummary {
 
 export interface ProviderDetail extends ProviderSummary {
   services: ServiceItem[]
+  instagramUrl: string | null
+  linkedInUrl: string | null
 }
 
 export interface ServiceItem {
@@ -25,4 +27,10 @@ export interface ServiceItem {
   currency: string
   sessionType: 'Individual' | 'Group'
   maxParticipants: number | null
+  recurrenceWeeks: number | null
+  scheduledStart: string | null
+  scheduledEnd: string | null
+  zoomLink: string | null
+  zoomMeetingId: string | null
+  zoomPassword: string | null
 }

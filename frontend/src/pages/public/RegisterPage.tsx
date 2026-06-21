@@ -15,6 +15,9 @@ const schema = z.object({
   lastName: z.string().min(1, 'Soyad gerekli').max(100),
   email: z.string().email('Geçerli bir e-posta girin'),
   password: z.string().min(8, 'En az 8 karakter olmalı'),
+  acceptKvkk: z.literal(true, { errorMap: () => ({ message: 'KVKK onayı zorunludur' }) }),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Kullanım koşulları onayı zorunludur' }) }),
+  isEmailSubscribed: z.boolean().default(false),
 })
 type FormData = z.infer<typeof schema>
 
@@ -33,15 +36,59 @@ const BENEFITS = [
   '24 saat öncesine kadar ücretsiz iptal',
 ]
 
+// ── Checkbox bileşeni ─────────────────────────────────────────────────────────
+
+function Checkbox({
+  checked, onChange, error, children,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  error?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="flex items-start gap-3 cursor-pointer select-none">
+        <div className="relative flex-shrink-0 mt-0.5">
+          <input type="checkbox" className="sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+          <div
+            className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors"
+            style={checked
+              ? { borderColor: 'var(--color-primary)', background: 'var(--color-primary)' }
+              : error
+                ? { borderColor: '#ef4444', background: '#fff' }
+                : { borderColor: '#d1d5db', background: '#fff' }}
+          >
+            {checked && (
+              <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+        </div>
+        <span className="text-xs text-gray-600 leading-relaxed">{children}</span>
+      </label>
+      {error && <p className="text-xs text-red-500 mt-1 ml-7">{error}</p>}
+    </div>
+  )
+}
+
+// ── Ana sayfa ─────────────────────────────────────────────────────────────────
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
   const { sector } = useTenantStore()
   const sectorCfg = getSectorConfig(sector)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: { isEmailSubscribed: false, acceptKvkk: undefined as any, acceptTerms: undefined as any },
   })
+
+  const acceptKvkk        = watch('acceptKvkk')
+  const acceptTerms       = watch('acceptTerms')
+  const isEmailSubscribed = watch('isEmailSubscribed')
 
   const mutation = useMutation({
     mutationFn: authApi.register,
@@ -53,20 +100,15 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel */}
+      {/* Sol panel */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
         style={{ background: 'var(--color-primary)' }}
       >
         <Logo size="md" white />
-
         <div>
-          <h2 className="text-4xl font-bold text-white leading-snug mb-4">
-            {sectorCfg.heroTitle}
-          </h2>
-          <p className="text-white/70 text-base mb-10">
-            Ücretsiz hesap oluştur, hemen başla.
-          </p>
+          <h2 className="text-4xl font-bold text-white leading-snug mb-4">{sectorCfg.heroTitle}</h2>
+          <p className="text-white/70 text-base mb-10">Ücretsiz hesap oluştur, hemen başla.</p>
           <div className="space-y-3">
             {BENEFITS.map((b) => (
               <div key={b} className="flex items-center gap-3">
@@ -76,14 +118,12 @@ export default function RegisterPage() {
             ))}
           </div>
         </div>
-
         <p className="text-white/40 text-xs">© 2025 · {sectorCfg.label}</p>
       </div>
 
-      {/* Right panel */}
+      {/* Sağ panel */}
       <div className="flex-1 flex items-center justify-center bg-gray-50 px-6 py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
             <Logo size="md" />
           </div>
@@ -101,6 +141,7 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            {/* Ad / Soyad */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Ad</label>
@@ -129,6 +170,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* E-posta */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">E-posta</label>
               <div className="relative">
@@ -144,6 +186,7 @@ export default function RegisterPage() {
               {errors.email && <p className="text-xs text-red-500 mt-1.5">{errors.email.message}</p>}
             </div>
 
+            {/* Şifre */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Şifre</label>
               <div className="relative">
@@ -157,6 +200,46 @@ export default function RegisterPage() {
                 />
               </div>
               {errors.password && <p className="text-xs text-red-500 mt-1.5">{errors.password.message}</p>}
+            </div>
+
+            {/* Zorunlu onaylar */}
+            <div className="space-y-3 pt-1">
+              <Checkbox
+                checked={!!acceptKvkk}
+                onChange={(v) => setValue('acceptKvkk', v as true)}
+                error={errors.acceptKvkk?.message}
+              >
+                <Link to="/kvkk" target="_blank" className="font-semibold underline" style={{ color: 'var(--color-primary)' }}>
+                  KVKK Aydınlatma Metni
+                </Link>
+                'ni okudum; kişisel verilerimin belirtilen amaçlarla işlenmesine onay veriyorum.{' '}
+                <span className="text-red-500 font-semibold">*</span>
+              </Checkbox>
+
+              <Checkbox
+                checked={!!acceptTerms}
+                onChange={(v) => setValue('acceptTerms', v as true)}
+                error={errors.acceptTerms?.message}
+              >
+                <Link to="/kullanim-kosullari" target="_blank" className="font-semibold underline" style={{ color: 'var(--color-primary)' }}>
+                  Kullanım Koşulları
+                </Link>
+                'nı ve{' '}
+                <Link to="/gizlilik" target="_blank" className="font-semibold underline" style={{ color: 'var(--color-primary)' }}>
+                  Gizlilik Politikası
+                </Link>
+                'nı okudum, kabul ediyorum.{' '}
+                <span className="text-red-500 font-semibold">*</span>
+              </Checkbox>
+
+              {/* İsteğe bağlı e-posta aboneliği */}
+              <Checkbox
+                checked={isEmailSubscribed}
+                onChange={(v) => setValue('isEmailSubscribed', v)}
+              >
+                Kampanya, duyuru ve bilgilendirici e-postalar almak istiyorum.{' '}
+                <span className="text-gray-400">(İsteğe bağlı)</span>
+              </Checkbox>
             </div>
 
             <button

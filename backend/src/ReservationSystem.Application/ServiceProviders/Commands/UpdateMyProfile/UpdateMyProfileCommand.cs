@@ -9,5 +9,7 @@ public record UpdateMyProfileCommand(
     List<string> Specializations,
     decimal? HourlyRate,
     string Currency,
-    string? AvatarUrl
+    string? AvatarUrl,
+    string? InstagramUrl = null,
+    string? LinkedInUrl = null
 ) : IRequest;

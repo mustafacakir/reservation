@@ -39,7 +39,16 @@ public class BrevoEmailService(
         sb.AppendLine($"DTSTART:{FormatIcsDt(d.StartUtc)}");
         sb.AppendLine($"DTEND:{FormatIcsDt(d.EndUtc)}");
         sb.AppendLine($"SUMMARY:{d.ServiceName} – {d.ProviderName}");
-        sb.AppendLine($"DESCRIPTION:{d.ServiceName} dersi. Eğitmen: {d.ProviderName}");
+        var desc = $"{d.ServiceName} dersi. Eğitmen: {d.ProviderName}";
+        if (d.ZoomLink is not null)
+            desc += $"\\nZoom: {d.ZoomLink}";
+        if (d.ZoomMeetingId is not null)
+            desc += $"\\nMeeting ID: {d.ZoomMeetingId}";
+        if (d.ZoomPassword is not null)
+            desc += $"\\nŞifre: {d.ZoomPassword}";
+        sb.AppendLine($"DESCRIPTION:{desc}");
+        if (d.ZoomLink is not null)
+            sb.AppendLine($"LOCATION:{d.ZoomLink}");
         sb.AppendLine($"ORGANIZER;CN={d.ProviderName}:mailto:{d.ProviderEmail}");
         if (d.ClientEmail is not null)
             sb.AppendLine($"ATTENDEE;CN={d.ClientName};RSVP=TRUE:mailto:{d.ClientEmail}");
@@ -67,6 +76,14 @@ public class BrevoEmailService(
   <tr><td style='padding:8px 0;color:#6b7280'>Kişi</td><td style='padding:8px 0;font-weight:600'>{d.ClientName}</td></tr>
 </table>
 <p style='color:#6b7280;font-size:13px;margin-top:24px'>Bu bildirim otomatik gönderilmiştir.</p></div>";
+        var zoomSection = (d.ZoomLink is not null || d.ZoomMeetingId is not null)
+            ? $@"<div style='margin-top:20px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px'>
+  <p style='margin:0 0 8px;font-weight:700;color:#15803d'>🎥 Zoom Bağlantısı</p>
+  {(d.ZoomLink is not null ? $"<p style='margin:4px 0'><a href='{d.ZoomLink}' style='color:#4f46e5;font-weight:600'>{d.ZoomLink}</a></p>" : "")}
+  {(d.ZoomMeetingId is not null ? $"<p style='margin:4px 0;font-size:13px;color:#374151'>Meeting ID: <strong>{d.ZoomMeetingId}</strong></p>" : "")}
+  {(d.ZoomPassword is not null ? $"<p style='margin:4px 0;font-size:13px;color:#374151'>Şifre: <strong>{d.ZoomPassword}</strong></p>" : "")}
+</div>"
+            : "";
         return $@"<div style='font-family:Arial,sans-serif;max-width:560px;margin:0 auto'>
 <h2 style='color:#4f46e5'>Rezervasyonunuz Onaylandı ✅</h2>
 <p>Merhaba <strong>{d.ClientName}</strong>, rezervasyonunuz başarıyla oluşturuldu!</p>
@@ -75,7 +92,8 @@ public class BrevoEmailService(
   <tr><td style='padding:8px 0;color:#6b7280'>Ders</td><td style='padding:8px 0;font-weight:600'>{d.ServiceName}</td></tr>
   <tr><td style='padding:8px 0;color:#6b7280'>Eğitmen</td><td style='padding:8px 0;font-weight:600'>{d.ProviderName}</td></tr>
 </table>
-<p>Takvim davetini kabul ederek randevunuzu takviminize ekleyebilirsiniz.</p>
+{zoomSection}
+<p style='margin-top:16px'>Takvim davetini kabul ederek randevunuzu takviminize ekleyebilirsiniz.</p>
 <p style='color:#6b7280;font-size:13px;margin-top:24px'>Bu bildirim otomatik gönderilmiştir.</p></div>";
     }
 
@@ -142,6 +160,32 @@ public class BrevoEmailService(
                 CancelHtml(d, toProvider: false), ics, ct);
     }
 
+    public async Task SendPaymentLinkAsync(BookingEmailData d, string paymentLinkToken, CancellationToken ct = default)
+    {
+        if (d.ClientEmail is null) return;
+        var baseUrl = options.Value.AppBaseUrl.TrimEnd('/');
+        var paymentUrl = $"{baseUrl}/odeme/{paymentLinkToken}";
+        var dateStr = FormatLocal(d.StartUtc);
+        var html = $@"<div style='font-family:Arial,sans-serif;max-width:560px;margin:0 auto'>
+<h2 style='color:#4f46e5'>Ödemenizi Tamamlayın 💳</h2>
+<p>Merhaba <strong>{d.ClientName}</strong>,</p>
+<p><strong>{d.ServiceName}</strong> dersi için rezervasyonunuz hazırlandı. Aşağıdaki butona tıklayarak ödemenizi güvenle tamamlayabilirsiniz.</p>
+<table style='border-collapse:collapse;width:100%;margin:16px 0'>
+  <tr><td style='padding:8px 0;color:#6b7280;width:120px'>Tarih &amp; Saat</td><td style='padding:8px 0;font-weight:600'>{dateStr}</td></tr>
+  <tr><td style='padding:8px 0;color:#6b7280'>Ders</td><td style='padding:8px 0;font-weight:600'>{d.ServiceName}</td></tr>
+  <tr><td style='padding:8px 0;color:#6b7280'>Eğitmen</td><td style='padding:8px 0;font-weight:600'>{d.ProviderName}</td></tr>
+</table>
+<div style='text-align:center;margin:28px 0'>
+  <a href='{paymentUrl}' style='display:inline-block;padding:14px 32px;background:#4f46e5;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px'>Ödemeyi Tamamla →</a>
+</div>
+<p style='color:#6b7280;font-size:13px'>Ödemenizi tamamladığınızda randevunuz otomatik olarak onaylanacak ve onay e-postası gönderilecektir.</p>
+<p style='color:#9ca3af;font-size:12px;margin-top:24px'>Bu bildirim otomatik gönderilmiştir. Link 30 dakika geçerlidir.</p></div>";
+
+        await SendAsync(d.ClientEmail, d.ClientName,
+            $"Ödeme Linki – {d.ServiceName}",
+            html, icsContent: null, ct);
+    }
+
     public async Task SendBookingReminderAsync(BookingEmailData d, CancellationToken ct = default)
     {
         var ics = GenerateIcs(d);
@@ -156,7 +200,7 @@ public class BrevoEmailService(
     }
 
     private async Task SendAsync(string toEmail, string toName, string subject,
-        string html, string icsContent, CancellationToken ct)
+        string html, string? icsContent, CancellationToken ct)
     {
         var cfg = options.Value;
         if (!cfg.Enabled || string.IsNullOrEmpty(cfg.SmtpPassword))
@@ -173,10 +217,13 @@ public class BrevoEmailService(
             message.Subject = subject;
 
             var builder = new BodyBuilder { HtmlBody = html };
-            var icsBytes = Encoding.UTF8.GetBytes(icsContent);
-            var attachment = builder.Attachments.Add("randevu.ics", icsBytes,
-                new ContentType("text", "calendar"));
-            attachment.ContentDisposition = new ContentDisposition(ContentDisposition.Attachment);
+            if (icsContent is not null)
+            {
+                var icsBytes = Encoding.UTF8.GetBytes(icsContent);
+                var attachment = builder.Attachments.Add("randevu.ics", icsBytes,
+                    new ContentType("text", "calendar"));
+                attachment.ContentDisposition = new ContentDisposition(ContentDisposition.Attachment);
+            }
 
             message.Body = builder.ToMessageBody();
 

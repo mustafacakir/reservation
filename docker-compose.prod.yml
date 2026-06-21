@@ -56,6 +56,7 @@ services:
       - Email__FromEmail=${EMAIL_FROM}
       - Email__FromName=${EMAIL_FROM_NAME:-Randevu Sistemi}
       - Email__Enabled=true
+      - Seq__ServerUrl=http://seq
     volumes:
       - uploads_data:/app/wwwroot/uploads
     depends_on:
@@ -63,6 +64,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      seq:
+        condition: service_started
+    networks:
+      - reservation-net
+    restart: unless-stopped
+
+  seq:
+    image: datalust/seq:2024.3
+    container_name: reservation-seq
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq_data:/data
+    ports:
+      - "127.0.0.1:5341:80"
     networks:
       - reservation-net
     restart: unless-stopped
@@ -87,6 +103,7 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  seq_data:
 
 networks:
   reservation-net:

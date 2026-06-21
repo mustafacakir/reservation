@@ -2,7 +2,7 @@ export default function MesafeliSatisSozlesmesiPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Mesafeli Satış Sözleşmesi</h1>
-      <p className="text-sm text-gray-400 mb-10">Son güncelleme: Haziran 2025</p>
+      <p className="text-sm text-gray-400 mb-10">Son güncelleme: Haziran 2026</p>
 
       <div className="space-y-8 text-gray-700 text-sm leading-relaxed">
 
@@ -72,15 +72,38 @@ export default function MesafeliSatisSozlesmesiPage() {
             onaylanması ve dersin gerçekleşmesi halinde cayma hakkı ortadan kalkar.
           </p>
           <p className="mt-2">
-            Ders henüz gerçekleşmemişse <strong>İptal ve İade Politikası</strong>'nda belirtilen koşullar geçerlidir.
+            Ders henüz gerçekleşmemişse aşağıdaki Madde 7'de belirtilen koşullar geçerlidir.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">MADDE 7 — İPTAL VE İADE</h2>
-          <p>
-            Ders başlangıcından en az <strong>12 saat önce</strong> yapılan iptal taleplerinde ödenen tutar tam olarak
-            iade edilir. Detaylı iptal koşulları için İptal ve İade Politikası sayfasını inceleyiniz.
+          <p className="mb-3">
+            İptal ve iade koşulları ders türüne göre farklıdır:
+          </p>
+          <div className="space-y-3">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="font-semibold text-red-800 mb-1">Grup Dersleri</p>
+              <p className="text-red-700 text-sm">
+                Grup derslerinde rezervasyon iptal edilemez ve ücret iadesi yapılmaz. Öğretmen kaynaklı
+                iptallerde Satıcı ile iletişime geçilmelidir.
+              </p>
+            </div>
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="font-semibold text-blue-800 mb-1">Bireysel (Birebir) Dersler</p>
+              <p className="text-blue-700 text-sm">
+                Bireysel derslerde ücret iadesi yapılmaz. Ders başlangıcından en az <strong>24 saat önce</strong>{' '}
+                başvurulması halinde yalnızca <strong>tarih değişimi</strong> talep edilebilir.
+                Tarih değişimi hakkı rezervasyon başına 1 kez kullanılabilir.
+              </p>
+            </div>
+          </div>
+          <p className="mt-3">
+            Detaylı bilgi için{' '}
+            <a href="/iptal-iade-politikasi" className="text-indigo-600 hover:underline">
+              İptal ve İade Politikası
+            </a>{' '}
+            sayfasını inceleyiniz.
           </p>
         </section>
 

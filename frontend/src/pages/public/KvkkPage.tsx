@@ -15,7 +15,7 @@ export default function KvkkPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li><strong>Kimlik verileri:</strong> Ad, soyad</li>
             <li><strong>İletişim verileri:</strong> E-posta adresi</li>
-            <li><strong>Finansal veriler:</strong> Ödeme işlem kayıtları (kart bilgileri iyzico'da saklanır)</li>
+            <li><strong>Finansal veriler:</strong> Ödeme işlem kayıtları (kart bilgileri tarafımızda saklanmaz; ödeme altyapısı KuveytTürk tarafından işlenir)</li>
             <li><strong>İşlem güvenliği verileri:</strong> IP adresi, oturum bilgileri</li>
             <li><strong>Görsel veri:</strong> Profil fotoğrafı (isteğe bağlı)</li>
           </ul>
@@ -33,7 +33,7 @@ export default function KvkkPage() {
 
         <section>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Kişisel Verilerin Aktarımı</h2>
-          <p>Kişisel verileriniz; ödeme hizmetleri için iyzico Ödeme Hizmetleri A.Ş.'ye, yasal zorunluluk halinde yetkili kamu kurum ve kuruluşlarına aktarılabilir. Yurt dışına aktarım yapılmamaktadır.</p>
+          <p>Kişisel verileriniz; ödeme hizmetleri için KuveytTürk Katılım Bankası A.Ş.'ye (3D Secure ödeme altyapısı), yasal zorunluluk halinde yetkili kamu kurum ve kuruluşlarına aktarılabilir. Yurt dışına aktarım yapılmamaktadır.</p>
         </section>
 
         <section>

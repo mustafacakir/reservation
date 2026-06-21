@@ -21,7 +21,53 @@ public class GetAvailableSlotsQueryHandler(
 
         var isGroup = service.SessionType == SessionType.Group;
 
-        // 2. Check for availability exception on this date
+        // 2. Group service with fixed schedule: bypass weekly availability entirely
+        if (isGroup && service.ScheduledStart.HasValue)
+        {
+            var tenant2 = await tenantService.GetCurrentTenantAsync(cancellationToken);
+            var tzInfo2 = GetTimeZoneInfo(tenant2?.Settings.TimeZone ?? "Europe/Istanbul");
+
+            int weeks = service.RecurrenceWeeks ?? 1;
+            for (int w = 0; w < weeks; w++)
+            {
+                var slotStart = service.ScheduledStart.Value.AddDays(7 * w);
+                var slotLocalDate = DateOnly.FromDateTime(
+                    TimeZoneInfo.ConvertTimeFromUtc(slotStart.UtcDateTime, tzInfo2));
+
+                if (slotLocalDate != request.Date) continue;
+                if (slotStart <= DateTimeOffset.UtcNow) return [];
+
+                var slotEnd = service.ScheduledEnd.HasValue
+                    ? service.ScheduledEnd.Value.AddDays(7 * w)
+                    : slotStart.AddMinutes(service.DurationMinutes);
+
+                var startLocal = TimeZoneInfo.ConvertTimeFromUtc(slotStart.UtcDateTime, tzInfo2).ToString("HH:mm");
+                var endLocal = TimeZoneInfo.ConvertTimeFromUtc(slotEnd.UtcDateTime, tzInfo2).ToString("HH:mm");
+
+                var count = await db.Bookings.CountAsync(b =>
+                    b.ServiceId == request.ServiceId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.Status != BookingStatus.NoShow &&
+                    b.StartUtc == slotStart,
+                    cancellationToken);
+
+                var isFull = service.MaxParticipants.HasValue && count >= service.MaxParticipants.Value;
+
+                return [new AvailableSlotDto(
+                    StartUtc: slotStart,
+                    EndUtc: slotEnd,
+                    StartLocal: startLocal,
+                    EndLocal: endLocal,
+                    IsGroup: true,
+                    MaxParticipants: service.MaxParticipants,
+                    CurrentParticipants: count,
+                    IsFull: isFull)];
+            }
+
+            return []; // Requested date is not a scheduled date for this group lesson
+        }
+
+        // 3. Check for availability exception on this date
         var exception = await db.AvailabilityExceptions
             .FirstOrDefaultAsync(e =>
                 e.ProviderId == request.ProviderId &&
@@ -30,7 +76,7 @@ public class GetAvailableSlotsQueryHandler(
         if (exception?.Type == AvailabilityExceptionType.DayOff)
             return [];
 
-        // 3. Determine time windows for this day (list to support multiple ranges)
+        // 4. Determine time windows for this day
         List<(TimeOnly Start, TimeOnly End)> windows;
 
         if (exception?.Type == AvailabilityExceptionType.CustomHours
@@ -53,11 +99,11 @@ public class GetAvailableSlotsQueryHandler(
             windows = weeklySlots.Select(s => (s.StartTime, s.EndTime)).ToList();
         }
 
-        // 4. Get tenant timezone
+        // 5. Get tenant timezone
         var tenant = await tenantService.GetCurrentTenantAsync(cancellationToken);
         var tzInfo = GetTimeZoneInfo(tenant?.Settings.TimeZone ?? "Europe/Istanbul");
 
-        // 5. Generate candidate slots across all windows
+        // 6. Generate candidate slots across all windows
         var candidates = windows
             .SelectMany(w => GenerateSlots(request.Date, w.Start, w.End, service.DurationMinutes, tzInfo))
             .OrderBy(s => s.StartUtc)
@@ -68,7 +114,7 @@ public class GetAvailableSlotsQueryHandler(
         var rangeStart = candidates.First().StartUtc;
         var rangeEnd = candidates.Last().EndUtc;
 
-        // 6a. Group: return all slots with booking counts
+        // 7a. Group (no fixed schedule): return all slots with booking counts
         if (isGroup)
         {
             var groupCounts = await db.Bookings
@@ -96,7 +142,7 @@ public class GetAvailableSlotsQueryHandler(
             }).ToList();
         }
 
-        // 6b. Individual: filter out slots overlapping existing bookings
+        // 7b. Individual: filter out slots overlapping existing bookings
         var existingBookings = await db.Bookings
             .Where(b =>
                 b.ProviderId == request.ProviderId &&

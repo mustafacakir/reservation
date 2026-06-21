@@ -24,47 +24,47 @@ function ProviderCard({ provider }: { provider: ProviderSummary }) {
   return (
     <Link
       to={`/providers/${provider.id}`}
-      className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[var(--color-primary)] transition-all duration-200 p-5 flex gap-4"
+      className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[var(--color-primary)] transition-all duration-200 p-6 flex flex-col gap-5 min-h-[260px]"
     >
-      <Avatar name={provider.fullName} avatarUrl={provider.avatarUrl} size="lg" />
-
-      <div className="flex-1 min-w-0 flex flex-col gap-2">
-        {/* Name + rating */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-bold text-gray-900 group-hover:text-[var(--color-primary)] transition-colors leading-tight">
-              {provider.fullName}
-            </p>
-          </div>
+      {/* Top row: avatar + name + price */}
+      <div className="flex items-center gap-4">
+        <Avatar name={provider.fullName} avatarUrl={provider.avatarUrl} size="lg" />
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-bold text-gray-900 group-hover:text-[var(--color-primary)] transition-colors leading-snug">
+            {provider.fullName}
+          </p>
           {provider.hourlyRate && (
-            <div className="flex-shrink-0 text-right">
-              <p className="font-extrabold text-lg text-gray-900 leading-none">₺{provider.hourlyRate.toLocaleString('tr-TR')}</p>
-              <p className="text-[10px] text-gray-400">/saat</p>
-            </div>
+            <p className="text-sm font-extrabold mt-1.5" style={{ color: 'var(--color-primary)' }}>
+              ₺{provider.hourlyRate.toLocaleString('tr-TR')}
+              <span className="text-xs font-normal text-gray-400"> /saat</span>
+            </p>
           )}
         </div>
+      </div>
 
-        {/* Bio */}
-        {bio && <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{bio}</p>}
+      {/* Bio */}
+      {bio
+        ? <p className="text-sm text-gray-600 line-clamp-4 leading-relaxed flex-1">{bio}</p>
+        : <div className="flex-1" />
+      }
 
-        {/* Tags + CTA */}
-        <div className="flex items-center justify-between gap-3 mt-auto">
-          <div className="flex flex-wrap gap-1.5 min-w-0">
-            {provider.specializations.slice(0, 3).map((s) => (
-              <span key={s} className="text-[11px] px-2.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
-                {s}
-              </span>
-            ))}
-            {provider.specializations.length > 3 && (
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-                +{provider.specializations.length - 3}
-              </span>
-            )}
-          </div>
-          <span className="flex-shrink-0 text-xs font-semibold px-4 py-1.5 rounded-xl text-white group-hover:opacity-90 transition-opacity" style={{ background: 'var(--color-primary)' }}>
-            Profili Gör →
-          </span>
+      {/* Tags + CTA */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5 min-w-0">
+          {provider.specializations.slice(0, 2).map((s) => (
+            <span key={s} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+              {s}
+            </span>
+          ))}
+          {provider.specializations.length > 2 && (
+            <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+              +{provider.specializations.length - 2}
+            </span>
+          )}
         </div>
+        <span className="flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-xl text-white group-hover:opacity-90 transition-opacity" style={{ background: 'var(--color-primary)' }}>
+          Profili Gör →
+        </span>
       </div>
     </Link>
   )
@@ -133,8 +133,8 @@ export default function BrowseProvidersPage() {
 
       {/* List */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => <div key={i} className="h-36 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[0, 1, 2].map((i) => <div key={i} className="h-[260px] bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
@@ -151,7 +151,7 @@ export default function BrowseProvidersPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((p) => <ProviderCard key={p.id} provider={p} />)}
         </div>
       )}

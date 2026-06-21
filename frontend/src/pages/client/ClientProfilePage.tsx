@@ -1,23 +1,26 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
-  CalendarDays, Clock, ChevronRight, CheckCircle, ArrowUpRight,
+  CalendarDays, Clock, ChevronRight, CheckCircle, ArrowUpRight, User, Save, Mail,
 } from 'lucide-react'
 import { bookingsApi } from '@/api/endpoints/bookings.api'
+import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
 import { getSectorConfig } from '@/config/sectors'
+import { useToast } from '@/components/ui/Toast'
 import type { Booking, BookingStatus } from '@/types/booking.types'
 
 const STATUS_CFG: Record<BookingStatus, { label: string; color: string; bg: string }> = {
-  Pending:   { label: 'Beklemede',  color: 'text-amber-700',  bg: 'bg-amber-100' },
-  Confirmed: { label: 'Onaylandı', color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  Cancelled: { label: 'İptal',     color: 'text-red-600',     bg: 'bg-red-100' },
-  Completed: { label: 'Tamamlandı',color: 'text-blue-700',    bg: 'bg-blue-100' },
-  NoShow:    { label: 'Gelmedi',   color: 'text-gray-500',    bg: 'bg-gray-100' },
+  Pending:   { label: 'Beklemede',   color: 'text-amber-700',   bg: 'bg-amber-100' },
+  Confirmed: { label: 'Onaylandı',  color: 'text-emerald-700', bg: 'bg-emerald-100' },
+  Cancelled: { label: 'İptal',      color: 'text-red-600',     bg: 'bg-red-100' },
+  Completed: { label: 'Tamamlandı', color: 'text-blue-700',    bg: 'bg-blue-100' },
+  NoShow:    { label: 'Gelmedi',    color: 'text-gray-500',    bg: 'bg-gray-100' },
 }
 
-const DAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 
 function fmtDate(utc: string) {
@@ -56,7 +59,6 @@ function UpcomingCard({ b }: { b: Booking }) {
           {DAYS[d.getDay()]}
         </p>
       </div>
-
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold truncate" style={{ color: isToday ? '#fff' : 'var(--color-primary)' }}>
           {b.serviceName}
@@ -94,6 +96,121 @@ function BookingRow({ b }: { b: Booking }) {
     </div>
   )
 }
+
+// ── Profile edit form ──────────────────────────────────────────────────────────
+
+function ProfileEditCard() {
+  const { fullName, setFullName } = useAuthStore()
+  const toast = useToast()
+
+  const [firstName, setFirstName] = useState(() => {
+    if (!fullName) return ''
+    const idx = fullName.indexOf(' ')
+    return idx === -1 ? fullName : fullName.slice(0, idx)
+  })
+  const [lastName, setLastName] = useState(() => {
+    if (!fullName) return ''
+    const idx = fullName.indexOf(' ')
+    return idx === -1 ? '' : fullName.slice(idx + 1)
+  })
+  const [isEmailSubscribed, setIsEmailSubscribed] = useState(false)
+  const [loadedSub, setLoadedSub] = useState(false)
+
+  // Fetch current subscription status
+  useQuery({
+    queryKey: ['authMe'],
+    queryFn: () => apiClient.get('/auth/me').then((r) => r.data as { isEmailSubscribed: boolean }),
+    enabled: !loadedSub,
+    onSuccess: (d: { isEmailSubscribed: boolean }) => {
+      setIsEmailSubscribed(d.isEmailSubscribed)
+      setLoadedSub(true)
+    },
+  } as any)
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      apiClient.put('/auth/me', { firstName: firstName.trim(), lastName: lastName.trim(), isEmailSubscribed }),
+    onSuccess: (res) => {
+      setFullName(res.data.fullName)
+      toast.success('Bilgiler güncellendi', res.data.fullName)
+    },
+    onError: () => {
+      toast.error('Güncelleme başarısız', 'Lütfen tekrar deneyin.')
+    },
+  })
+
+  const isDirty = (`${firstName.trim()} ${lastName.trim()}`.trim()) !== (fullName ?? '') || loadedSub
+  const canSave = firstName.trim().length > 0
+
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white'
+  const ringStyle = { '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
+          <User size={14} style={{ color: 'var(--color-primary)' }} />
+        </div>
+        <h2 className="text-sm font-semibold text-gray-800">Bilgileri Güncelle</h2>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ad *</label>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Ali"
+              className={inputCls}
+              style={ringStyle}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Soyad</label>
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Yılmaz"
+              className={inputCls}
+              style={ringStyle}
+            />
+          </div>
+        </div>
+
+        {/* E-posta aboneliği toggle */}
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <div
+            onClick={() => setIsEmailSubscribed((v) => !v)}
+            className="flex-shrink-0 mt-0.5 w-9 h-5 rounded-full transition-colors relative cursor-pointer"
+            style={isEmailSubscribed ? { background: 'var(--color-primary)' } : { background: '#d1d5db' }}
+          >
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+              style={{ transform: isEmailSubscribed ? 'translateX(16px)' : 'translateX(2px)' }}
+            />
+          </div>
+          <span className="text-xs text-gray-600 leading-relaxed">
+            <span className="flex items-center gap-1 font-semibold mb-0.5"><Mail size={11} /> Bilgilendirme e-postaları</span>
+            Kampanya, duyuru ve bilgilendirici e-postalar almak istiyorum.
+          </span>
+        </label>
+
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || !canSave}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-opacity hover:opacity-90"
+          style={{ background: 'var(--color-primary)' }}
+        >
+          <Save size={14} />
+          {mutation.isPending ? 'Kaydediliyor…' : 'Kaydet'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function ClientProfilePage() {
   const { fullName } = useAuthStore()
@@ -142,12 +259,11 @@ export default function ClientProfilePage() {
           <h1 className="text-lg font-bold text-gray-900">{fullName}</h1>
           <p className="text-sm text-gray-400">{sectorCfg.clientLabel}</p>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: 'Toplam Ders',  value: all.length },
-              { label: 'Yaklaşan',     value: upcoming.length },
-              { label: 'Tamamlanan',   value: completed },
+              { label: 'Toplam Ders', value: all.length },
+              { label: 'Yaklaşan',    value: upcoming.length },
+              { label: 'Tamamlanan',  value: completed },
             ].map(({ label, value }) => (
               <div key={label} className="text-center p-3 rounded-xl bg-gray-50">
                 <p className="text-xl font-extrabold text-gray-900">{isLoading ? '—' : value}</p>
@@ -158,7 +274,10 @@ export default function ClientProfilePage() {
         </div>
       </div>
 
-      {/* Next lesson highlight */}
+      {/* Profile edit */}
+      <ProfileEditCard />
+
+      {/* Upcoming */}
       {isLoading ? (
         <div className="h-28 bg-white rounded-2xl border border-gray-100 animate-pulse" />
       ) : upcoming.length > 0 ? (
@@ -190,7 +309,7 @@ export default function ClientProfilePage() {
         </div>
       )}
 
-      {/* Past lessons */}
+      {/* Past */}
       {past.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">

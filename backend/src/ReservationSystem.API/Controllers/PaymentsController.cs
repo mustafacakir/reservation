@@ -153,6 +153,10 @@ public class PaymentsController(
                 return Redirect($"{frontendUrl}/client/payment-result?success=false&error={Uri.EscapeDataString("Ödeme bilgisi bulunamadı")}");
 
             var bookingId = await mediator.Send(new CreateBookingFromPaymentCommand(pending), ct);
+
+            if (pending.IsPaymentLink && pending.PaymentLinkToken is not null)
+                return Redirect($"{frontendUrl}/odeme/{pending.PaymentLinkToken}?paid=true");
+
             return Redirect($"{frontendUrl}/client/payment-result?success=true&bookingId={bookingId}");
         }
         catch (Exception ex)

@@ -16,6 +16,7 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         "/api/v1/payments/kuveytturk/fail",
         "/api/v1/payments/paytr/notify",
         "/api/v1/payments/paytr/complete",
+        "/api/v1/pay",
         "/uploads"
     ];
 

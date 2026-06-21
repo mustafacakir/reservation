@@ -27,6 +27,8 @@ public class GetMyProfileQueryHandler(
             provider.Bio,
             provider.Specializations,
             provider.HourlyRate,
-            provider.Currency);
+            provider.Currency,
+            provider.InstagramUrl,
+            provider.LinkedInUrl);
     }
 }

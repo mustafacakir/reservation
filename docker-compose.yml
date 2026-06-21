@@ -63,6 +63,7 @@ services:
       - KuveytTurk__OkUrl=${KUVEYTTURK_OK_URL:-http://localhost:5005/api/v1/payments/kuveytturk/callback}
       - KuveytTurk__FailUrl=${KUVEYTTURK_FAIL_URL:-http://localhost:5005/api/v1/payments/kuveytturk/fail}
       - KuveytTurk__FrontendBaseUrl=${KUVEYTTURK_FRONTEND_BASE_URL:-http://localhost:3000}
+      - Seq__ServerUrl=http://seq
     volumes:
       - uploads_data:/app/wwwroot/uploads
     ports:
@@ -94,6 +95,18 @@ services:
     networks:
       - reservation-net
 
+  seq:
+    image: datalust/seq:2024.3
+    container_name: reservation-seq
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq_data:/data
+    ports:
+      - "5341:80"
+    networks:
+      - reservation-net
+
   mailhog:
     image: mailhog/mailhog:latest
     container_name: reservation-mailhog
@@ -121,6 +134,7 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  seq_data:
 
 networks:
   reservation-net:

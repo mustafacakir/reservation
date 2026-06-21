@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   CalendarDays, Clock, CheckCircle, Sun, MessageSquare, Banknote,
-  X, Check, ChevronRight, CalendarPlus, Pencil,
+  X, Check, ChevronRight, CalendarPlus, Pencil, ChevronLeft,
 } from 'lucide-react'
 import { bookingsApi } from '@/api/endpoints/bookings.api'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import type { Booking } from '@/types/booking.types'
 import type { WeeklySlot } from '@/types/availability.types'
+import type { ServiceItem } from '@/types/provider.types'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -61,29 +62,106 @@ function effectiveStatus(b: Booking): Booking['status'] {
 
 // ── Weekly Schedule ────────────────────────────────────────────────────────────
 
-function WeeklySchedule({ slots, isLoading }: { slots: WeeklySlot[]; isLoading: boolean }) {
+function WeeklySchedule({ slots, services, isLoading, bookings }: {
+  slots: WeeklySlot[]
+  services: ServiceItem[]
+  isLoading: boolean
+  bookings: Booking[]
+}) {
+  const [weekOffset, setWeekOffset] = useState(0)
   const today = new Date()
-  const todayDow = today.getDay()
+  const todayJsDow = today.getDay()
 
-  // Get this week's date for each day-of-week (Sun=0 … Sat=6)
-  const weekDates: Record<number, Date> = {}
-  for (let dow = 0; dow < 7; dow++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() + (dow - todayDow))
-    weekDates[dow] = d
+  const jsDowToCol = (dow: number) => (dow + 6) % 7 // Mon=0, Sun=6
+
+  const DAY_SHORT_MF = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+  const HOUR_PX = 60
+
+  const PALETTES = [
+    { bg: 'var(--color-primary-light)', fg: 'var(--color-primary)', bd: 'var(--color-primary)' },
+    { bg: '#fef3c7', fg: '#b45309', bd: '#f59e0b' },
+    { bg: '#dcfce7', fg: '#15803d', bd: '#22c55e' },
+    { bg: '#fce7f3', fg: '#be185d', bd: '#ec4899' },
+  ]
+
+  const parseHM = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number)
+    return h + m / 60
   }
 
-  const byDay: Record<number, WeeklySlot[]> = Object.fromEntries(
+  // Monday of the displayed week
+  const monday = useCallback(() => {
+    const d = new Date(today)
+    const dow = d.getDay()
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow) + weekOffset * 7)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [weekOffset])() // eslint-disable-line react-hooks/exhaustive-deps
+
+  const weekEnd = new Date(monday)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+
+  // One date per Mon-first column
+  const weekDates = Array.from({ length: 7 }, (_, col) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + col)
+    return d
+  })
+
+  const weekLabel = (() => {
+    const s = weekDates[0], e = weekDates[6]
+    if (weekOffset === 0) return 'Bu Hafta'
+    if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear())
+      return `${s.getDate()} – ${e.getDate()} ${s.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`
+    return `${s.getDate()} ${s.toLocaleDateString('tr-TR', { month: 'short' })} – ${e.getDate()} ${e.toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' })}`
+  })()
+
+  const availByCol: Record<number, WeeklySlot[]> = Object.fromEntries(
     Array.from({ length: 7 }, (_, i) => [i, []])
   )
-  slots.forEach((s) => byDay[s.dayOfWeek].push(s))
-  const activeCount = Object.values(byDay).filter((r) => r.length > 0).length
+  slots.forEach((s) => availByCol[jsDowToCol(s.dayOfWeek)].push(s))
 
-  const totalHours = slots.reduce((sum, s) => {
-    const [sh, sm] = s.startTime.split(':').map(Number)
-    const [eh, em] = s.endTime.split(':').map(Number)
-    return sum + (eh * 60 + em - (sh * 60 + sm)) / 60
-  }, 0)
+  // Group lesson occurrences that fall in the displayed week
+  const fixedEvents = services
+    .filter((s) => s.scheduledStart)
+    .flatMap((s, i) => {
+      const baseStart = new Date(s.scheduledStart!)
+      const baseEnd = s.scheduledEnd
+        ? new Date(s.scheduledEnd)
+        : new Date(baseStart.getTime() + s.durationMinutes * 60000)
+      const weeks = s.recurrenceWeeks ?? 1
+      for (let w = 0; w < weeks; w++) {
+        const st = new Date(baseStart.getTime() + w * 7 * 24 * 60 * 60 * 1000)
+        const stDay = new Date(st); stDay.setHours(0, 0, 0, 0)
+        if (stDay >= monday && stDay < weekEnd) {
+          const en = new Date(baseEnd.getTime() + w * 7 * 24 * 60 * 60 * 1000)
+          const col = jsDowToCol(st.getDay())
+          const startH = st.getHours() + st.getMinutes() / 60
+          const endH = en.getHours() + en.getMinutes() / 60
+          const tStart = st.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          const tEnd = en.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          const stMs = st.getTime()
+          const count = bookings.filter(
+            (b) => b.serviceId === s.id &&
+              new Date(b.startUtc).getTime() === stMs &&
+              (b.status === 'Confirmed' || b.status === 'Pending')
+          ).length
+          return [{ s, col, startH, endH, tStart, tEnd, pal: PALETTES[i % PALETTES.length], count }]
+        }
+      }
+      return []
+    })
+
+  const allStartH = [...slots.map((s) => parseHM(s.startTime)), ...fixedEvents.map((e) => e.startH)]
+  const allEndH = [...slots.map((s) => parseHM(s.endTime)), ...fixedEvents.map((e) => e.endH)]
+  const hasContent = allStartH.length > 0
+  const minH = hasContent ? Math.max(6, Math.floor(Math.min(...allStartH)) - 1) : 8
+  const maxH = hasContent ? Math.min(23, Math.ceil(Math.max(...allEndH)) + 1) : 18
+  const hours = Array.from({ length: maxH - minH + 1 }, (_, i) => minH + i)
+  const totalH = (maxH - minH) * HOUR_PX
+  const todayCol = weekOffset === 0 ? jsDowToCol(todayJsDow) : -1
+  const activeCount = Object.values(availByCol).filter((r) => r.length > 0).length
+  const totalHours = slots.reduce((sum, s) => sum + parseHM(s.endTime) - parseHM(s.startTime), 0)
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -99,23 +177,45 @@ function WeeklySchedule({ slots, isLoading }: { slots: WeeklySlot[]; isLoading: 
             )}
           </div>
         </div>
-        <Link
-          to="/provider/availability"
-          className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50"
-          style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary-light)' }}
-        >
-          <Pencil size={11} /> Düzenle
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Week navigation */}
+          <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1">
+            <button
+              onClick={() => setWeekOffset((w) => w - 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-white hover:shadow-sm transition-all"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="px-2.5 h-7 text-[11px] font-semibold rounded-lg transition-all"
+              style={weekOffset === 0
+                ? { background: 'var(--color-primary)', color: '#fff' }
+                : { color: 'var(--color-primary)' }}
+            >
+              {weekLabel}
+            </button>
+            <button
+              onClick={() => setWeekOffset((w) => w + 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-white hover:shadow-sm transition-all"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          <Link
+            to="/provider/availability"
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50"
+            style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary-light)' }}
+          >
+            <Pencil size={11} /> Düzenle
+          </Link>
+        </div>
       </div>
 
       <div className="p-4">
         {isLoading ? (
-          <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="h-24 rounded-xl bg-gray-100 animate-pulse" />
-            ))}
-          </div>
-        ) : activeCount === 0 ? (
+          <div className="h-64 rounded-xl bg-gray-100 animate-pulse" />
+        ) : !hasContent ? (
           <div className="py-8 text-center">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-primary-light)' }}>
               <CalendarPlus size={20} style={{ color: 'var(--color-primary)' }} />
@@ -131,61 +231,131 @@ function WeeklySchedule({ slots, isLoading }: { slots: WeeklySlot[]; isLoading: 
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-7 gap-1.5">
-            {[0, 1, 2, 3, 4, 5, 6].map((dow) => {
-              const ranges = byDay[dow]
-              const active = ranges.length > 0
-              const isNow = dow === todayDow
-              return (
-                <div
-                  key={dow}
-                  className="rounded-xl flex flex-col items-center text-center py-3 px-1 relative"
-                  style={{
-                    background: active ? 'var(--color-primary-light)' : '#f9fafb',
-                    boxShadow: isNow && active ? '0 0 0 2px var(--color-primary)' : undefined,
-                  }}
-                >
-                  {isNow && active && (
-                    <span
-                      className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
-                      style={{ background: 'var(--color-primary)' }}
-                    />
-                  )}
-                  <p
-                    className="text-[10px] font-bold leading-none"
-                    style={{ color: active ? 'var(--color-primary)' : '#d1d5db' }}
-                  >
-                    {DAY_SHORT[dow]}
-                  </p>
-                  <p
-                    className="text-sm font-bold leading-none mt-1 mb-2"
-                    style={{ color: active ? 'var(--color-primary)' : isNow ? '#6b7280' : '#d1d5db' }}
-                  >
-                    {weekDates[dow].getDate()}
-                  </p>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div className="min-w-[560px]">
+              {/* Day headers */}
+              <div className="flex pl-10 mb-2 gap-px">
+                {DAY_SHORT_MF.map((d, col) => {
+                  const isNow = col === todayCol
+                  const date = weekDates[col]
+                  return (
+                    <div key={d} className="flex-1 flex flex-col items-center py-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isNow ? 'var(--color-primary)' : '#9ca3af' }}>
+                        {d}
+                      </p>
+                      <span
+                        className="text-xs font-bold mt-0.5 w-6 h-6 flex items-center justify-center rounded-full"
+                        style={isNow
+                          ? { background: 'var(--color-primary)', color: '#fff' }
+                          : { color: '#6b7280' }
+                        }
+                      >
+                        {date.getDate()}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
 
-                  {active ? (
-                    <div className="w-full space-y-2">
-                      {ranges.map((r, i) => (
-                        <div key={i} className="text-center">
-                          <p className="text-[9px] font-bold leading-none" style={{ color: 'var(--color-primary)' }}>
-                            {r.startTime.slice(0, 5)}
+              {/* Calendar grid */}
+              <div className="flex" style={{ height: totalH }}>
+                {/* Hour axis */}
+                <div className="w-10 flex-shrink-0 relative select-none">
+                  {hours.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute right-2 text-[10px] text-gray-400 leading-none"
+                      style={{ top: (h - minH) * HOUR_PX - 6 }}
+                    >
+                      {String(h).padStart(2, '0')}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day columns */}
+                {Array.from({ length: 7 }, (_, col) => {
+                  const avails = availByCol[col]
+                  const colEvents = fixedEvents.filter((e) => e.col === col)
+                  const isNow = col === todayCol
+
+                  return (
+                    <div
+                      key={col}
+                      className="flex-1 relative"
+                      style={{ borderLeft: col > 0 ? '1px solid #f3f4f6' : undefined }}
+                    >
+                      {hours.map((h) => (
+                        <div
+                          key={h}
+                          className="absolute left-0 right-0"
+                          style={{ top: (h - minH) * HOUR_PX, borderTop: '1px solid #f3f4f6' }}
+                        />
+                      ))}
+
+                      {isNow && (
+                        <div className="absolute inset-0 pointer-events-none rounded-sm" style={{ background: 'var(--color-primary-light)', opacity: 0.15 }} />
+                      )}
+
+                      {avails.map((slot, i) => {
+                        const sh = parseHM(slot.startTime)
+                        const eh = parseHM(slot.endTime)
+                        const top = (Math.max(sh, minH) - minH) * HOUR_PX
+                        const height = (Math.min(eh, maxH) - Math.max(sh, minH)) * HOUR_PX
+                        if (height <= 0) return null
+                        return (
+                          <div
+                            key={i}
+                            className="absolute left-0.5 right-0.5 rounded-md"
+                            style={{ top: top + 1, height: height - 2, background: 'var(--color-primary-light)', opacity: 0.55 }}
+                          />
+                        )
+                      })}
+
+                      {colEvents.map((e, j) => (
+                        <Link
+                          key={j}
+                          to="/provider/services"
+                          className="absolute left-1 right-1 rounded-xl px-2 py-1.5 overflow-hidden shadow-sm hover:brightness-95 transition-all"
+                          style={{
+                            top: (e.startH - minH) * HOUR_PX + 2,
+                            height: (e.endH - e.startH) * HOUR_PX - 4,
+                            background: e.pal.bg,
+                            border: `1.5px solid ${e.pal.bd}`,
+                          }}
+                        >
+                          <p className="text-[11px] font-bold leading-tight truncate" style={{ color: e.pal.fg }}>
+                            {e.s.name}
                           </p>
-                          <div className="my-0.5 flex justify-center">
-                            <div className="w-px h-3" style={{ background: 'var(--color-primary)', opacity: 0.3 }} />
-                          </div>
-                          <p className="text-[9px] font-bold leading-none" style={{ color: 'var(--color-primary)' }}>
-                            {r.endTime.slice(0, 5)}
+                          <p className="text-[10px] leading-tight mt-0.5" style={{ color: e.pal.fg, opacity: 0.8 }}>
+                            {e.tStart} – {e.tEnd}
                           </p>
-                        </div>
+                          <p className="text-[9px] leading-tight mt-0.5" style={{ color: e.pal.fg, opacity: 0.65 }}>
+                            {e.s.maxParticipants
+                              ? `${e.count}/${e.s.maxParticipants} kayıtlı`
+                              : e.count > 0 ? `${e.count} kayıtlı` : ''}
+                            {e.s.recurrenceWeeks && e.s.recurrenceWeeks > 1 ? ` · ${e.s.recurrenceWeeks} hafta` : ''}
+                          </p>
+                        </Link>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-[9px] text-gray-300">—</p>
-                  )}
+                  )
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--color-primary-light)' }} />
+                  <span className="text-[10px] text-gray-400">Müsait saat</span>
                 </div>
-              )
-            })}
+                {services.filter((s) => s.scheduledStart).map((s, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm" style={{ background: PALETTES[i % PALETTES.length].bg, border: `1px solid ${PALETTES[i % PALETTES.length].bd}` }} />
+                    <span className="text-[10px] text-gray-400">{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -406,12 +576,29 @@ export default function ProviderDashboard() {
     queryFn: () => apiClient.get<WeeklySlot[]>('/availability/me/weekly').then((r) => r.data),
   })
 
+  const { data: myServices = [] } = useQuery<ServiceItem[]>({
+    queryKey: ['myServices'],
+    queryFn: () => apiClient.get<ServiceItem[]>('/services/me').then((r) => r.data),
+  })
+
   const all = bookingData?.items ?? []
 
   const upcoming = all
     .filter((b) => effectiveStatus(b) !== 'Completed' && effectiveStatus(b) !== 'Cancelled' &&
       (isToday(b.startUtc) || new Date(b.startUtc) > now))
     .sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime())
+
+  // Services with a fixed future date (no booking required to show in schedule)
+  const scheduledServices = myServices.filter((s) => {
+    if (!s.scheduledStart) return false
+    const weeks = s.recurrenceWeeks ?? 1
+    // Show if any occurrence is in the future
+    for (let w = 0; w < weeks; w++) {
+      const d = new Date(new Date(s.scheduledStart).getTime() + w * 7 * 24 * 60 * 60 * 1000)
+      if (d > now) return true
+    }
+    return false
+  })
 
   const todayCount     = all.filter((b) => isToday(b.startUtc) && effectiveStatus(b) !== 'Cancelled').length
   const pendingCount   = all.filter((b) => effectiveStatus(b) === 'Pending').length
@@ -423,9 +610,11 @@ export default function ProviderDashboard() {
     filter === 'completed' ? all.filter((b) => effectiveStatus(b) === 'Completed') :
     all
 
+  const upcomingTotal = upcoming.length + scheduledServices.length
+
   const stats = [
     { label: 'Bugün',      value: todayCount,     Icon: Sun,          active: todayCount > 0 },
-    { label: 'Yaklaşan',   value: upcoming.length, Icon: CalendarDays, active: false },
+    { label: 'Yaklaşan',   value: upcomingTotal,  Icon: CalendarDays, active: false },
     { label: 'Bekleyen',   value: pendingCount,    Icon: Clock,        active: pendingCount > 0 },
     { label: 'Tamamlanan', value: completedCount,  Icon: CheckCircle,  active: false },
   ]
@@ -467,7 +656,7 @@ export default function ProviderDashboard() {
       </div>
 
       {/* Weekly Schedule — main feature */}
-      <WeeklySchedule slots={availSlots} isLoading={availLoading} />
+      <WeeklySchedule slots={availSlots} services={myServices} isLoading={availLoading} bookings={all} />
 
       {/* Today's timeline + quick CTA */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -549,19 +738,73 @@ export default function ProviderDashboard() {
               <div key={i} className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-14 text-center">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-primary-light)' }}>
-              <CalendarDays size={20} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <p className="text-sm font-medium text-gray-600">Ders bulunamadı</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {filter === 'upcoming' ? 'Yaklaşan ders yok. Müsaitliğinizi güncelleyin.' : 'Bu filtrede ders yok.'}
-            </p>
-          </div>
         ) : (
           <div className="space-y-3">
+            {/* Scheduled services (fixed-date, no booking needed) */}
+            {filter === 'upcoming' && scheduledServices.map((s) => {
+              const start = new Date(s.scheduledStart!)
+              const end = s.scheduledEnd ? new Date(s.scheduledEnd) : new Date(start.getTime() + s.durationMinutes * 60000)
+              const weeks = s.recurrenceWeeks ?? 1
+              const occurrences = Array.from({ length: weeks }, (_, w) => ({
+                start: new Date(start.getTime() + w * 7 * 24 * 60 * 60 * 1000),
+                end: new Date(end.getTime() + w * 7 * 24 * 60 * 60 * 1000),
+              })).filter((o) => o.start > now)
+              return occurrences.map((occ, w) => (
+                <div key={`${s.id}-${w}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                    <CalendarDays size={16} style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-900 text-sm">{s.name}</p>
+                      {s.sessionType === 'Group' && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>GRUP</span>
+                      )}
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600">PLANLI</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <CalendarDays size={11} />{dayLabel(occ.start.toISOString())}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <Clock size={11} />
+                        {occ.start.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                        {' – '}
+                        {occ.end.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {s.sessionType === 'Group' && s.maxParticipants && (
+                        <span className="text-xs text-gray-400">Maks. {s.maxParticipants} kişi</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-gray-700 flex-shrink-0">
+                    {Number(s.price) === 0 ? <span className="text-green-600">Ücretsiz</span> : `₺${Number(s.price).toLocaleString('tr-TR')}`}
+                  </span>
+                </div>
+              ))
+            })}
+
+            {/* Actual bookings */}
             {filtered.map((b) => <BookingCard key={b.id} b={b} />)}
+
+            {filter !== 'upcoming' && filtered.length === 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-14 text-center">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-primary-light)' }}>
+                  <CalendarDays size={20} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Ders bulunamadı</p>
+                <p className="text-xs text-gray-400 mt-1">Bu filtrede ders yok.</p>
+              </div>
+            )}
+            {filter === 'upcoming' && upcoming.length === 0 && scheduledServices.length === 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-14 text-center">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-primary-light)' }}>
+                  <CalendarDays size={20} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Yaklaşan ders yok</p>
+                <p className="text-xs text-gray-400 mt-1">Müsaitliğinizi güncelleyin veya sabit tarihli ders ekleyin.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

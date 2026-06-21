@@ -2,12 +2,11 @@ import { useState } from 'react'
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import Logo from '@/components/landing/Logo'
-import { CalendarDays, LogOut, Menu, X, LayoutDashboard, UserCog, GraduationCap } from 'lucide-react'
+import { CalendarDays, LogOut, Menu, X, UserCog, GraduationCap } from 'lucide-react'
 
 const navItems = [
-  { to: '/client/bookings',  label: 'Derslerim',  Icon: CalendarDays },
-  { to: '/client/profile',   label: 'Profilim',   Icon: LayoutDashboard },
-  { to: '/client/account',   label: 'Hesabım',    Icon: UserCog },
+  { to: '/client/bookings', label: 'Derslerim', Icon: CalendarDays },
+  { to: '/client/account',  label: 'Hesabım',   Icon: UserCog },
 ]
 
 const actionItems = [

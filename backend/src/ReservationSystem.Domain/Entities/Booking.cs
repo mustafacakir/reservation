@@ -22,6 +22,14 @@ public class Booking : BaseEntity, ITenantEntity
     public string Currency { get; private set; } = "USD";
     public DateTimeOffset? ReminderSentAt { get; private set; }
 
+    /// <summary>Links all bookings in the same recurring series together.</summary>
+    public Guid? RecurrenceGroupId { get; private set; }
+
+    /// <summary>Token for sharing a payment link with a student (manual bookings only).</summary>
+    public string? PaymentLinkToken { get; private set; }
+
+    public void SetPaymentLinkToken(string token) { PaymentLinkToken = token; SetUpdatedAt(); }
+
     // Navigation
     public Service Service { get; private set; } = default!;
     public ServiceProvider Provider { get; private set; } = default!;
@@ -33,7 +41,8 @@ public class Booking : BaseEntity, ITenantEntity
 
     public static Booking Create(Guid tenantId, Guid serviceId, Guid providerId,
         Guid clientId, DateTimeOffset startUtc, DateTimeOffset endUtc,
-        decimal price, string currency, string? clientNotes = null)
+        decimal price, string currency, string? clientNotes = null,
+        Guid? recurrenceGroupId = null)
     {
         if (endUtc <= startUtc)
             throw new ArgumentException("EndUtc must be after StartUtc.");
@@ -50,7 +59,8 @@ public class Booking : BaseEntity, ITenantEntity
             EndUtc = endUtc,
             Price = price,
             Currency = currency,
-            ClientNotes = clientNotes
+            ClientNotes = clientNotes,
+            RecurrenceGroupId = recurrenceGroupId,
         };
 
         booking.AddDomainEvent(new BookingCreatedEvent(booking.Id, tenantId, providerId, clientId, startUtc));

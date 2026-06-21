@@ -16,11 +16,12 @@ import KvkkPage from '@/pages/public/KvkkPage'
 import IptalIadePolitikasiPage from '@/pages/public/IptalIadePolitikasiPage'
 import MesafeliSatisSozlesmesiPage from '@/pages/public/MesafeliSatisSozlesmesiPage'
 import IletisimPage from '@/pages/public/IletisimPage'
+import PaymentLinkPage from '@/pages/public/PaymentLinkPage'
+import NotFoundPage from '@/pages/public/NotFoundPage'
 
 // Client pages
 import BrowseProvidersPage from '@/pages/client/BrowseProvidersPage'
 import MyBookingsPage from '@/pages/client/MyBookingsPage'
-import ClientProfilePage from '@/pages/client/ClientProfilePage'
 import BookingFlowPage from '@/pages/client/BookingFlowPage'
 import PaymentResultPage from '@/pages/client/PaymentResultPage'
 import ClientAccountPage from '@/pages/client/ClientAccountPage'
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: 'iptal-iade', element: <IptalIadePolitikasiPage /> },
       { path: 'mesafeli-satis-sozlesmesi', element: <MesafeliSatisSozlesmesiPage /> },
       { path: 'iletisim', element: <IletisimPage /> },
+      { path: 'odeme/:token', element: <PaymentLinkPage /> },
     ],
   },
   {
@@ -60,7 +62,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute allowedRoles={['Client', 'ServiceProvider']}><ClientLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <Navigate to="bookings" replace /> },
-      { path: 'profile', element: <ClientProfilePage /> },
+      { path: 'profile', element: <Navigate to="/client/account" replace /> },
       { path: 'browse', element: <BrowseProvidersPage /> },
       { path: 'bookings', element: <MyBookingsPage /> },
       { path: 'book/:providerId/:serviceId', element: <BookingFlowPage /> },
@@ -88,4 +90,5 @@ export const router = createBrowserRouter([
       { path: 'bookings', element: <AdminBookingsPage /> },
     ],
   },
+  { path: '*', element: <NotFoundPage /> },
 ])
