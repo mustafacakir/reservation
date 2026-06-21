@@ -11,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Serilog
 var seqUrl = builder.Configuration["Seq:ServerUrl"];
 
+Serilog.Debugging.SelfLog.Enable(msg => Console.Error.WriteLine("[SERILOG] " + msg));
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
