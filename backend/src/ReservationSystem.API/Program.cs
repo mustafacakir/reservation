@@ -11,15 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Serilog
 var seqUrl = builder.Configuration["Seq:ServerUrl"];
 
-Serilog.Debugging.SelfLog.Enable(msg => Console.Error.WriteLine("[SERILOG] " + msg));
-
-Log.Logger = new LoggerConfiguration()
+var logConfig = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "ReservationAPI")
-    .WriteTo.Console()
-    .WriteTo.Seq(seqUrl ?? "http://seq")
-    .CreateLogger();
+    .WriteTo.Console();
+
+if (builder.Environment.IsProduction() && !string.IsNullOrEmpty(seqUrl))
+    logConfig = logConfig.WriteTo.Seq(seqUrl);
+
+Log.Logger = logConfig.CreateLogger();
 
 builder.Host.UseSerilog();
 
