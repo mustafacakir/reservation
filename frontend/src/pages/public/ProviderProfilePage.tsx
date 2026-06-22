@@ -394,7 +394,7 @@ function KuveytTurkCardForm({
   const ringStyle = { '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties
 
   return (
-    <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+    <div className="bg-gray-50 min-h-[60vh]">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
