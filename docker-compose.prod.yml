@@ -54,7 +54,8 @@ services:
       - Iyzico__BaseUrl=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
       - Iyzico__CallbackUrl=http://${SERVER_HOST}/api/v1/payments/callback
       - Iyzico__FrontendBaseUrl=http://${SERVER_HOST}
-      - Email__BrevoApiKey=${BREVO_API_KEY}
+      - Email__SmtpUsername=${BREVO_SMTP_USERNAME}
+      - Email__SmtpPassword=${BREVO_SMTP_PASSWORD}
       - Email__FromEmail=${EMAIL_FROM}
       - Email__FromName=${EMAIL_FROM_NAME:-Randevu Sistemi}
       - Email__Enabled=true
