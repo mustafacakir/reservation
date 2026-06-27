@@ -606,12 +606,12 @@ export default function BookingFlowPage() {
           {/* Notes */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-              Öğretmene not <span className="font-normal text-gray-400 text-xs">(isteğe bağlı)</span>
+              Ders Hakkında Bilgi <span className="font-normal text-gray-400 text-xs">(isteğe bağlı)</span>
             </label>
             <textarea
               value={clientNotes}
               onChange={(e) => setClientNotes(e.target.value)}
-              placeholder="Odaklanmak istediğiniz konuları, önceki bilginizi yazabilirsiniz…"
+              placeholder="Lütfen almak istediğiniz ders hakkında detaylı bilgi yazınız (Sınav, konu, ders türü vb.)"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
               style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
               rows={3}

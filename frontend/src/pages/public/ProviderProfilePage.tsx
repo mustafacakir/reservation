@@ -920,7 +920,7 @@ function BookingPanel({
           <textarea
             value={clientNotes}
             onChange={e => setClientNotes(e.target.value)}
-            placeholder="Öğretmene not ekle (isteğe bağlı)"
+            placeholder="Lütfen almak istediğiniz ders hakkında detaylı bilgi yazınız (Sınav, konu, ders türü vb.)"
             rows={2}
             className="w-full mb-3 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:border-transparent placeholder-gray-400"
             style={{ '--tw-ring-color': 'var(--color-primary)' } as any}
