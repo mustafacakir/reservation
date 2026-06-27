@@ -685,8 +685,17 @@ export default function ProviderProfilePage() {
             {provider.bio && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-4">
                 <h2 className="font-semibold text-gray-900 mb-3">Hakkında</h2>
+                <style>{`
+                  .bio-content p { margin-bottom: 0.5rem; }
+                  .bio-content p:last-child { margin-bottom: 0; }
+                  .bio-content ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+                  .bio-content ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+                  .bio-content li { margin-bottom: 0.25rem; }
+                  .bio-content strong { font-weight: 700; }
+                  .bio-content em { font-style: italic; }
+                `}</style>
                 <div
-                  className="text-gray-600 text-sm leading-relaxed prose prose-sm max-w-none"
+                  className="bio-content text-gray-600 text-sm leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: provider.bio }}
                 />
               </div>
