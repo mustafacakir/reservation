@@ -97,7 +97,8 @@ public class InitializePaymentCommandHandler(
             request.CardHolderName,
             request.CardExpireMonth,
             request.CardExpireYear,
-            request.CardCvv);
+            request.CardCvv,
+            user.PhoneNumber);
 
         var gatewayResult = await paymentGateway.InitializeAsync(gatewayRequest, cancellationToken);
 

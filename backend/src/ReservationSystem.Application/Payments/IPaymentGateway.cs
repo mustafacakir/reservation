@@ -14,7 +14,8 @@ public record GatewayInitRequest(
     string? CardHolderName = null,
     string? CardExpireMonth = null,
     string? CardExpireYear = null,
-    string? CardCvv = null
+    string? CardCvv = null,
+    string? PhoneNumber = null
 );
 
 public record GatewayInitResult(

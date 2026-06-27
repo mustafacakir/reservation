@@ -41,15 +41,24 @@ public class KuveytTurkPaymentService(
             string.IsNullOrEmpty(req.CardNumber) ? "BOŞ" : req.CardNumber[..4] + "****",
             req.CardHolderName, req.CardExpireMonth, req.CardExpireYear, hashData);
 
+        var clientIp = string.IsNullOrWhiteSpace(req.UserIp) ? "1.1.1.1" : req.UserIp;
+        var phone = string.IsNullOrWhiteSpace(req.PhoneNumber)
+            ? "5000000000"
+            : new string(req.PhoneNumber.Where(char.IsDigit).ToArray()).TrimStart('9', '0').PadLeft(10, '5')[..10];
+
         var html = $"""
             <!DOCTYPE html>
             <html lang="tr">
             <head><meta charset="UTF-8"><title>Ödeme yönlendiriliyor…</title></head>
             <body>
               <form id="ktForm" method="POST" action="{endpoint}">
+                <input type="hidden" name="APIVersion"            value="TDV2.0.0" />
                 <input type="hidden" name="MerchantId"            value="{o.MerchantId}" />
+                <input type="hidden" name="CustomerId"            value="{o.CustomerNumber}" />
                 <input type="hidden" name="UserName"              value="{o.UserName}" />
                 <input type="hidden" name="HashData"              value="{hashData}" />
+                <input type="hidden" name="OkUrl"                 value="{o.OkUrl}" />
+                <input type="hidden" name="FailUrl"               value="{o.FailUrl}" />
                 <input type="hidden" name="TransactionType"       value="Sale" />
                 <input type="hidden" name="TransactionSecurity"   value="3" />
                 <input type="hidden" name="InstallmentCount"      value="0" />
@@ -57,13 +66,21 @@ public class KuveytTurkPaymentService(
                 <input type="hidden" name="DisplayAmount"         value="{amountStr}" />
                 <input type="hidden" name="CurrencyCode"          value="0949" />
                 <input type="hidden" name="MerchantOrderId"       value="{req.MerchantOrderId}" />
-                <input type="hidden" name="OkUrl"                 value="{o.OkUrl}" />
-                <input type="hidden" name="FailUrl"               value="{o.FailUrl}" />
                 <input type="hidden" name="CardNumber"            value="{req.CardNumber}" />
                 <input type="hidden" name="CardHolderName"        value="{req.CardHolderName}" />
                 <input type="hidden" name="CardExpireDateMonth"   value="{req.CardExpireMonth}" />
                 <input type="hidden" name="CardExpireDateYear"    value="{req.CardExpireYear}" />
                 <input type="hidden" name="CardCVV2"              value="{req.CardCvv}" />
+                <input type="hidden" name="DeviceData.DeviceChannel" value="02" />
+                <input type="hidden" name="DeviceData.ClientIP"      value="{clientIp}" />
+                <input type="hidden" name="CardHolderData.BillAddrCity"     value="İstanbul" />
+                <input type="hidden" name="CardHolderData.BillAddrCountry"  value="792" />
+                <input type="hidden" name="CardHolderData.BillAddrLine1"    value="Türkiye" />
+                <input type="hidden" name="CardHolderData.BillAddrPostCode" value="34000" />
+                <input type="hidden" name="CardHolderData.BillAddrState"    value="34" />
+                <input type="hidden" name="CardHolderData.Email"            value="{req.Email}" />
+                <input type="hidden" name="CardHolderData.MobilePhone.Cc"         value="90" />
+                <input type="hidden" name="CardHolderData.MobilePhone.Subscriber" value="{phone}" />
               </form>
               <script>document.getElementById('ktForm').submit();</script>
             </body>
@@ -142,12 +159,12 @@ public class KuveytTurkPaymentService(
         var endpoint = o.TestMode ? TestEndpointProvision : ProdEndpointProvision;
 
         var xml = $"""
-            <KuveytTurkVPosMessage>
-              <APIVersion>1.0.0</APIVersion>
+            <KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+              <APIVersion>TDV2.0.0</APIVersion>
               <HashData>{hashData}</HashData>
               <MerchantId>{o.MerchantId}</MerchantId>
+              <CustomerId>{o.CustomerNumber}</CustomerId>
               <UserName>{o.UserName}</UserName>
-              <CustomerNumber>{o.CustomerNumber}</CustomerNumber>
               <TransactionType>Sale</TransactionType>
               <InstallmentCount>0</InstallmentCount>
               <Amount>{amount}</Amount>
@@ -220,7 +237,8 @@ public class KuveytTurkPaymentService(
         string merchantId, string userName, string merchantOrderId,
         string amount, string passwordHash)
     {
-        var raw = merchantId + userName + merchantOrderId + amount + passwordHash;
+        // Doküman sırası: MerchantId + MerchantOrderId + Amount + UserName + HashPassword
+        var raw = merchantId + merchantOrderId + amount + userName + passwordHash;
         return Convert.ToBase64String(SHA1.HashData(Encoding.UTF8.GetBytes(raw)));
     }
 }
