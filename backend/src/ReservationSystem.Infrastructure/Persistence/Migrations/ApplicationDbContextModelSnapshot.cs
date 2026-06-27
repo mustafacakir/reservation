@@ -312,8 +312,7 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Bio")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

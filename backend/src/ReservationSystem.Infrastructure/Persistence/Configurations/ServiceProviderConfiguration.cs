@@ -8,7 +8,7 @@ public class ServiceProviderConfiguration : IEntityTypeConfiguration<Domain.Enti
     public void Configure(EntityTypeBuilder<Domain.Entities.ServiceProvider> builder)
     {
         builder.HasKey(p => p.Id);
-        builder.Property(p => p.Bio).HasMaxLength(2000);
+        builder.Property(p => p.Bio).HasColumnType("text");
         builder.Property(p => p.Currency).HasMaxLength(3);
         builder.Property(p => p.HourlyRate).HasPrecision(10, 2);
         builder.Property(p => p.AverageRating).HasPrecision(3, 2);
