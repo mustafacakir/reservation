@@ -212,7 +212,7 @@ export default function LandingPage() {
                           )}
                           {p.specializations.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {p.specializations.slice(0, 3).map((s) => (
+                              {p.specializations.map((s) => (
                                 <span
                                   key={s}
                                   className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -324,7 +324,6 @@ export default function LandingPage() {
               ))
             ) : (
               providers.map((p) => {
-                const bio = p.bio ? p.bio.replace(/<[^>]*>/g, '').trim() : null
                 return (
                   <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center flex flex-col">
                     <div className="flex justify-center mb-3">
@@ -332,12 +331,9 @@ export default function LandingPage() {
                     </div>
                     <h3 className="font-bold text-gray-900 text-base mb-0.5">{p.fullName}</h3>
                     <p className="text-xs text-gray-500 mb-2">{cfg.heroProviderTitle}</p>
-                    {bio && (
-                      <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-3 flex-1">{bio}</p>
-                    )}
                     {p.specializations.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 justify-center mb-3">
-                        {p.specializations.slice(0, 3).map((s) => (
+                        {p.specializations.map((s) => (
                           <span
                             key={s}
                             className="text-[10px] px-2 py-0.5 rounded-full font-medium"
@@ -360,7 +356,7 @@ export default function LandingPage() {
                       className="block w-full py-2.5 rounded-xl text-xs font-bold text-white transition-opacity hover:opacity-90 mt-auto"
                       style={{ background: 'var(--color-primary)' }}
                     >
-                      Rezervasyon Yap
+                      Profilini Gör
                     </Link>
                   </div>
                 )
