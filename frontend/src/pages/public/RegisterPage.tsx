@@ -15,7 +15,7 @@ const schema = z.object({
   lastName: z.string().min(1, 'Soyad gerekli').max(100),
   email: z.string().email('Geçerli bir e-posta girin'),
   password: z.string().min(8, 'En az 8 karakter olmalı'),
-  phoneNumber: z.string().min(10, 'Geçerli bir telefon numarası girin').max(20),
+  phoneNumber: z.string().regex(/^0[5][0-9]{9}$/, 'Geçerli bir TR cep telefonu girin (05XX XXX XX XX)'),
   acceptKvkk: z.literal(true, { errorMap: () => ({ message: 'KVKK onayı zorunludur' }) }),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Kullanım koşulları onayı zorunludur' }) }),
   isEmailSubscribed: z.boolean().default(false),
@@ -197,6 +197,12 @@ export default function RegisterPage() {
                   type="tel"
                   autoComplete="tel"
                   placeholder="05XX XXX XX XX"
+                  maxLength={11}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+                    e.target.value = digits
+                    register('phoneNumber').onChange(e)
+                  }}
                   className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${errors.phoneNumber ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-[var(--color-primary)]'}`}
                 />
               </div>
