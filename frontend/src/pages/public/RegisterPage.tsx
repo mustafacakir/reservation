@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Mail, Lock, User, Phone, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
 import { authApi } from '@/api/endpoints/auth.api'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
@@ -15,6 +15,7 @@ const schema = z.object({
   lastName: z.string().min(1, 'Soyad gerekli').max(100),
   email: z.string().email('Geçerli bir e-posta girin'),
   password: z.string().min(8, 'En az 8 karakter olmalı'),
+  phoneNumber: z.string().min(10, 'Geçerli bir telefon numarası girin').max(20),
   acceptKvkk: z.literal(true, { errorMap: () => ({ message: 'KVKK onayı zorunludur' }) }),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Kullanım koşulları onayı zorunludur' }) }),
   isEmailSubscribed: z.boolean().default(false),
@@ -184,6 +185,22 @@ export default function RegisterPage() {
                 />
               </div>
               {errors.email && <p className="text-xs text-red-500 mt-1.5">{errors.email.message}</p>}
+            </div>
+
+            {/* Telefon */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefon Numarası</label>
+              <div className="relative">
+                <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  {...register('phoneNumber')}
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="05XX XXX XX XX"
+                  className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${errors.phoneNumber ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-[var(--color-primary)]'}`}
+                />
+              </div>
+              {errors.phoneNumber && <p className="text-xs text-red-500 mt-1.5">{errors.phoneNumber.message}</p>}
             </div>
 
             {/* Şifre */}

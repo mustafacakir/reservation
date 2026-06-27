@@ -7,6 +7,7 @@ public record RegisterUserCommand(
     string Password,
     string FirstName,
     string LastName,
+    string? PhoneNumber = null,
     bool IsEmailSubscribed = false
 ) : IRequest<RegisterUserResult>;
 

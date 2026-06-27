@@ -29,6 +29,8 @@ public class RegisterUserCommandHandler(
         var passwordHash = passwordHasher.Hash(request.Password);
         var user = User.Create(tenantId, request.Email, passwordHash,
             request.FirstName, request.LastName, UserRole.Client, request.IsEmailSubscribed);
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+            user.SetPhoneNumber(request.PhoneNumber);
 
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         user.SetRefreshToken(refreshToken, DateTimeOffset.UtcNow.AddDays(30));
