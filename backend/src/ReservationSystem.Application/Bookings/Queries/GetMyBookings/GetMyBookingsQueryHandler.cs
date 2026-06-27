@@ -41,7 +41,8 @@ public class GetMyBookingsQueryHandler(
                 b.ProviderId, b.Provider.User.FullName,
                 b.StartUtc, b.EndUtc,
                 b.Status.ToString(), b.Price, b.Currency, b.ClientNotes,
-                b.Client.FullName, null))
+                b.Client.FullName, null,
+                b.Service.ZoomLink, b.Service.ZoomMeetingId, b.Service.ZoomPassword))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<BookingDto>(items, total, request.Page, request.PageSize);

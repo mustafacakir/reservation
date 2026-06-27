@@ -10,6 +10,7 @@ using ReservationSystem.Infrastructure.Email;
 using ReservationSystem.Infrastructure.Identity;
 using ReservationSystem.Infrastructure.Payment;
 using ReservationSystem.Infrastructure.Persistence;
+using ReservationSystem.Infrastructure.Sms;
 using ReservationSystem.Infrastructure.Tenancy;
 using System.Text;
 
@@ -58,6 +59,11 @@ public static class DependencyInjection
         services.Configure<EmailSettings>(configuration.GetSection("Email"));
         services.AddScoped<IEmailService, BrevoEmailService>();
         services.AddHostedService<BookingReminderBackgroundService>();
+
+        // SMS
+        services.Configure<NetGsmOptions>(configuration.GetSection("NetGsm"));
+        services.AddHttpClient("NetGsm");
+        services.AddScoped<ISmsService, NetGsmSmsService>();
 
         // Identity services
         services.AddScoped<IJwtTokenService, JwtTokenService>();

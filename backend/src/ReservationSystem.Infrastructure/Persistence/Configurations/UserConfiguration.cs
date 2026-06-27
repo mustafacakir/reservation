@@ -13,6 +13,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(u => u.LastName).HasMaxLength(100).IsRequired();
         builder.Property(u => u.AvatarUrl).HasMaxLength(500);
+        builder.Property(u => u.PhoneNumber).HasMaxLength(20);
 
         // Unique email per tenant
         builder.HasIndex(u => new { u.TenantId, u.Email }).IsUnique();

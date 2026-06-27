@@ -37,7 +37,7 @@ function BookingCard({ booking }: { booking: Booking }) {
   const [cancelReason, setCancelReason] = useState('')
   const cfg = STATUS_CFG[booking.status]
   const { day, time } = fmtFull(booking.startUtc)
-  const canCancel = booking.status === 'Pending' || booking.status === 'Confirmed'
+  const canCancel = false // ileride acilacak
   const withinWindow = new Date(booking.startUtc) <= new Date(Date.now() + 24 * 60 * 60 * 1000)
   const initials = booking.providerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
 
@@ -86,6 +86,24 @@ function BookingCard({ booking }: { booking: Booking }) {
               <p className="mt-3 text-xs text-gray-400 italic bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
                 "{booking.clientNotes}"
               </p>
+            )}
+
+            {(booking.zoomLink || booking.zoomMeetingId) && (booking.status === 'Confirmed' || booking.status === 'Pending') && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1">
+                <p className="text-xs font-semibold text-blue-700">Zoom Bağlantısı</p>
+                {booking.zoomLink && (
+                  <a href={booking.zoomLink} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
+                    <ArrowUpRight size={11} />Derse Katıl
+                  </a>
+                )}
+                {booking.zoomMeetingId && (
+                  <p className="text-xs text-blue-600">Meeting ID: <span className="font-mono">{booking.zoomMeetingId}</span></p>
+                )}
+                {booking.zoomPassword && (
+                  <p className="text-xs text-blue-600">Şifre: <span className="font-mono">{booking.zoomPassword}</span></p>
+                )}
+              </div>
             )}
 
             {canCancel && (

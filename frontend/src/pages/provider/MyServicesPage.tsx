@@ -36,10 +36,11 @@ function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: s
   const [eh, em] = endTimeStr.split(':').map(Number)
   const blockMinutes = (eh * 60 + em) - (sh * 60 + sm)
   if (blockMinutes <= 0) return null
-  const blockPerSession = Math.ceil(durationMinutes / 60) * 60
-  const sessionCount = Math.floor(blockMinutes / blockPerSession)
-  const breakMinutes = blockPerSession - durationMinutes
-  return { blockMinutes, blockPerSession, sessionCount, breakMinutes }
+  const BREAK = 10
+  // Son seansın ardından mola gerekmediği için: N seans = N*ders + (N-1)*mola
+  // N = floor((blockMinutes + BREAK) / (durationMinutes + BREAK))
+  const sessionCount = Math.floor((blockMinutes + BREAK) / (durationMinutes + BREAK))
+  return { blockMinutes, sessionCount, breakMinutes: BREAK }
 }
 
 const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null }

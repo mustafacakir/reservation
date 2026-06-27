@@ -14,6 +14,7 @@ public class User : BaseEntity, ITenantEntity
     public UserRole Role { get; private set; }
     public bool IsEmailVerified { get; private set; }
     public bool IsEmailSubscribed { get; private set; }
+    public string? PhoneNumber { get; private set; }
     public string? RefreshToken { get; private set; }
     public DateTimeOffset? RefreshTokenExpiresAt { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
@@ -50,6 +51,12 @@ public class User : BaseEntity, ITenantEntity
         LastName = lastName.Trim();
         AvatarUrl = avatarUrl;
         IsEmailSubscribed = isEmailSubscribed;
+        SetUpdatedAt();
+    }
+
+    public void SetPhoneNumber(string? phoneNumber)
+    {
+        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
         SetUpdatedAt();
     }
 

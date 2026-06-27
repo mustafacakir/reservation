@@ -11,5 +11,6 @@ public record UpdateMyProfileCommand(
     string Currency,
     string? AvatarUrl,
     string? InstagramUrl = null,
-    string? LinkedInUrl = null
+    string? LinkedInUrl = null,
+    string? PhoneNumber = null
 ) : IRequest;

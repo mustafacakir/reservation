@@ -22,6 +22,7 @@ public class UpdateMyProfileCommandHandler(
             ?? throw new NotFoundException("ServiceProvider", userId);
 
         user.UpdateProfile(request.FirstName, request.LastName, request.AvatarUrl, user.IsEmailSubscribed);
+        user.SetPhoneNumber(request.PhoneNumber);
         provider.UpdateProfile(request.Bio, request.Specializations, request.HourlyRate, request.Currency, request.InstagramUrl, request.LinkedInUrl);
 
         await db.SaveChangesAsync(cancellationToken);

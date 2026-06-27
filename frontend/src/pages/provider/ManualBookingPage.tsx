@@ -1,28 +1,35 @@
 import { useState } from 'react'
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, User, CalendarDays, Clock, ChevronRight, BookOpen, Banknote, Link, Copy, Check, Mail } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Users, User, CalendarDays, Clock, ChevronLeft, ChevronRight, BookOpen, Banknote, Link, Copy, Check, Mail } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { useToast } from '@/components/ui/Toast'
 import type { ServiceItem } from '@/types/provider.types'
-import type { AvailableSlot } from '@/types/availability.types'
+import type { AvailableSlot, WeeklySlot } from '@/types/availability.types'
+
+interface TimeRange { startTime: string; endTime: string }
+interface DateSlot { date: string; ranges: TimeRange[] }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
-
-function getNext14Days(): Date[] {
-  return Array.from({ length: 14 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    return d
-  })
-}
 
 function toDateParam(d: Date) {
   return d.toISOString().split('T')[0]
 }
 
+function toDateStr(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function getMonthCells(year: number, month: number): (number | null)[] {
+  const startDow = (new Date(year, month, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  return [...Array(startDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+}
+
 const WEEKDAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
+const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 const MONTHS   = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 
 function fmtUtc(utc: string) {
   const d = new Date(utc)
@@ -41,114 +48,157 @@ function SlotPicker({
   selectedStart: string | null
   onSelect: (startUtc: string, label: string) => void
 }) {
-  const days = getNext14Days()
-  const [activeDay, setActiveDay] = useState(days[0])
+  const today = new Date()
+  const todayStr = toDateParam(today)
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+  const [activeDay, setActiveDay] = useState<string | null>(null)
 
-  const dayQueries = useQueries({
-    queries: days.map((d) => ({
-      queryKey: ['slots', providerId, serviceId, toDateParam(d)],
-      queryFn: () => providersApi.getAvailableSlots(providerId, serviceId, toDateParam(d)),
-      staleTime: 0,
-    })),
+  const { data: slots = [], isLoading, isFetching } = useQuery<AvailableSlot[]>({
+    queryKey: ['slots', providerId, serviceId, activeDay],
+    queryFn: () => providersApi.getAvailableSlots(providerId, serviceId, activeDay!),
+    enabled: !!activeDay,
+    staleTime: 0,
   })
 
-  const activeDateStr = toDateParam(activeDay)
-  const activeIdx = days.findIndex((d) => toDateParam(d) === activeDateStr)
-  const slots: AvailableSlot[] = dayQueries[activeIdx]?.data ?? []
-  const isLoading = dayQueries[activeIdx]?.isLoading ?? true
+  const monthFrom = toDateStr(year, month, 1)
+  const monthTo = toDateStr(year, month, new Date(year, month + 1, 0).getDate())
 
-  const hasSlots: Record<string, boolean | undefined> = {}
-  days.forEach((d, i) => {
-    const q = dayQueries[i]
-    if (!q.isLoading) hasSlots[toDateParam(d)] = (q.data?.length ?? 0) > 0
+  const { data: monthDateSlots = [] } = useQuery<DateSlot[]>({
+    queryKey: ['myDateSlots', monthFrom, monthTo],
+    queryFn: () => apiClient.get<DateSlot[]>(`/availability/me/dates?from=${monthFrom}&to=${monthTo}`).then(r => r.data),
   })
+
+  const { data: weeklySlots = [] } = useQuery<WeeklySlot[]>({
+    queryKey: ['myAvailability'],
+    queryFn: () => apiClient.get<WeeklySlot[]>('/availability/me/weekly').then(r => r.data),
+  })
+
+  const dateAvailSet = new Set(monthDateSlots.map(ds => ds.date))
+  const weeklyDowSet = new Set(weeklySlots.map(s => s.dayOfWeek))
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
+  const cells = getMonthCells(year, month)
 
   return (
-    <div>
-      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-        {days.map((d) => {
-          const ds = toDateParam(d)
-          const active = ds === activeDateStr
-          const available = hasSlots[ds]
-          const loading = hasSlots[ds] === undefined
-          const disabled = !loading && available === false
+    <div className="space-y-3">
+      {/* Month nav */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={prevMonth}
+          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+          disabled={year === today.getFullYear() && month === today.getMonth()}
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-bold text-gray-800">{MONTH_NAMES[month]} {year}</span>
+        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7">
+        {DAY_LABELS.map(d => (
+          <div key={d} className="text-center text-[9px] font-semibold text-gray-400 uppercase py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />
+          const dateStr = toDateStr(year, month, day)
+          const isPast = dateStr < todayStr
+          const isActive = activeDay === dateStr
+          const isToday = dateStr === todayStr
+          const dow = new Date(year, month, day).getDay()
+          const hasAvail = !isPast && (dateAvailSet.has(dateStr) || weeklyDowSet.has(dow))
+
           return (
             <button
-              key={ds}
-              disabled={disabled}
-              onClick={() => { setActiveDay(d); onSelect('', '') }}
+              key={i}
+              disabled={isPast}
+              onClick={() => { setActiveDay(dateStr); onSelect('', '') }}
               className={[
-                'flex-shrink-0 flex flex-col items-center w-12 py-2 rounded-xl text-xs font-medium transition-all',
-                active ? 'text-white shadow-sm'
-                  : disabled ? 'text-gray-300 bg-gray-50 cursor-not-allowed opacity-40'
-                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100',
+                'flex flex-col items-center justify-center rounded-lg py-1.5 text-xs font-medium transition-all min-h-[36px]',
+                isPast ? 'text-gray-200 cursor-not-allowed' : 'cursor-pointer hover:opacity-80',
+                isActive ? 'text-white shadow-sm' : hasAvail ? '' : 'text-gray-400',
               ].join(' ')}
-              style={active ? { background: 'var(--color-primary)' } : {}}
+              style={
+                isActive ? { background: 'var(--color-primary)' }
+                : hasAvail ? { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                : {}
+              }
             >
-              <span className="text-[9px] uppercase tracking-wider opacity-75">{WEEKDAYS[d.getDay()]}</span>
-              <span className="text-base font-bold leading-tight mt-0.5">{d.getDate()}</span>
-              <span className="text-[9px] opacity-60">{MONTHS[d.getMonth()]}</span>
-              {!disabled && !active && !loading && (
-                <span className="w-1 h-1 rounded-full mt-1" style={{ background: 'var(--color-primary)' }} />
-              )}
+              <span className={`text-sm font-bold ${isToday && !isActive ? 'underline decoration-dotted' : ''}`}>
+                {day}
+              </span>
             </button>
           )
         })}
       </div>
 
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="grid grid-cols-4 gap-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />
-            ))}
-          </div>
-        ) : slots.length === 0 ? (
-          <div className="py-8 text-center">
-            <CalendarDays size={28} className="text-gray-200 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">Bu gün müsait saat yok</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {slots.map((slot) => {
-              const selected = slot.startUtc === selectedStart
-              const full = slot.isFull
-              return (
-                <button
-                  key={slot.startUtc}
-                  disabled={full}
-                  onClick={() => !full && onSelect(slot.startUtc, `${slot.startLocal} – ${slot.endLocal}`)}
-                  className={[
-                    'py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1',
-                    full ? 'text-gray-300 border-gray-100 bg-gray-50 cursor-not-allowed'
-                      : selected ? 'text-white border-transparent shadow-sm'
-                      : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
-                  ].join(' ')}
-                  style={selected && !full ? { background: 'var(--color-primary)' } : {}}
-                >
-                  <span>{slot.startLocal}</span>
-                  {slot.isGroup && slot.maxParticipants && (
-                    <span
-                      className="flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded"
-                      style={full
-                        ? { background: '#fee2e2', color: '#dc2626' }
-                        : selected
-                          ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
-                          : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
-                      }
-                    >
-                      {full ? 'DOLU' : <><Users size={8} /> {slot.currentParticipants}/{slot.maxParticipants}</>}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        )}
-        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
-          <Clock size={11} /> Her ders {durationMinutes} dakika
-        </p>
-      </div>
+      {/* Slot list */}
+      {activeDay && (
+        <div className="pt-2 border-t border-gray-50">
+          <p className="text-xs font-semibold text-gray-500 mb-2">
+            {new Date(activeDay + 'T12:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}
+          </p>
+          {isLoading || isFetching ? (
+            <div className="grid grid-cols-4 gap-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />
+              ))}
+            </div>
+          ) : slots.length === 0 ? (
+            <div className="py-6 text-center">
+              <CalendarDays size={24} className="text-gray-200 mx-auto mb-2" />
+              <p className="text-xs text-gray-400">Bu gün müsait saat yok</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {slots.map((slot) => {
+                const selected = slot.startUtc === selectedStart
+                const full = slot.isFull
+                return (
+                  <button
+                    key={slot.startUtc}
+                    disabled={full}
+                    onClick={() => !full && onSelect(slot.startUtc, `${slot.startLocal} – ${slot.endLocal}`)}
+                    className={[
+                      'py-2.5 px-1 rounded-xl text-xs font-semibold border transition-all flex flex-col items-center gap-1',
+                      full ? 'text-gray-300 border-gray-100 bg-gray-50 cursor-not-allowed'
+                        : selected ? 'text-white border-transparent shadow-sm'
+                        : 'text-gray-700 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
+                    ].join(' ')}
+                    style={selected && !full ? { background: 'var(--color-primary)' } : {}}
+                  >
+                    <span>{slot.startLocal}</span>
+                    {slot.isGroup && slot.maxParticipants && (
+                      <span
+                        className="flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded"
+                        style={full
+                          ? { background: '#fee2e2', color: '#dc2626' }
+                          : selected
+                            ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
+                            : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                        }
+                      >
+                        {full ? 'DOLU' : <><Users size={8} /> {slot.currentParticipants}/{slot.maxParticipants}</>}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+            <Clock size={11} /> Her ders {durationMinutes} dakika
+          </p>
+        </div>
+      )}
     </div>
   )
 }

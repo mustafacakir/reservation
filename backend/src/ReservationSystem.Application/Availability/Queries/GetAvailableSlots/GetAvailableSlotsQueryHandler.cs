@@ -67,22 +67,26 @@ public class GetAvailableSlotsQueryHandler(
             return []; // Requested date is not a scheduled date for this group lesson
         }
 
-        // 3. Check for availability exception on this date
-        var exception = await db.AvailabilityExceptions
-            .FirstOrDefaultAsync(e =>
-                e.ProviderId == request.ProviderId &&
-                e.Date == request.Date, cancellationToken);
+        // 3. Check for availability exceptions on this date
+        var exceptions = await db.AvailabilityExceptions
+            .Where(e => e.ProviderId == request.ProviderId && e.Date == request.Date)
+            .ToListAsync(cancellationToken);
 
-        if (exception?.Type == AvailabilityExceptionType.DayOff)
+        if (exceptions.Any(e => e.Type == AvailabilityExceptionType.DayOff))
             return [];
 
         // 4. Determine time windows for this day
         List<(TimeOnly Start, TimeOnly End)> windows;
 
-        if (exception?.Type == AvailabilityExceptionType.CustomHours
-            && exception.CustomStartTime.HasValue && exception.CustomEndTime.HasValue)
+        var customWindows = exceptions
+            .Where(e => e.Type == AvailabilityExceptionType.CustomHours
+                        && e.CustomStartTime.HasValue && e.CustomEndTime.HasValue)
+            .Select(e => (e.CustomStartTime!.Value, e.CustomEndTime!.Value))
+            .ToList();
+
+        if (customWindows.Count > 0)
         {
-            windows = [(exception.CustomStartTime.Value, exception.CustomEndTime.Value)];
+            windows = customWindows;
         }
         else
         {

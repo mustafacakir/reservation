@@ -24,5 +24,8 @@ public record BookingDto(
     string Currency,
     string? ClientNotes = null,
     string? ClientName = null,
-    string? PaymentLinkToken = null
+    string? PaymentLinkToken = null,
+    string? ZoomLink = null,
+    string? ZoomMeetingId = null,
+    string? ZoomPassword = null
 );

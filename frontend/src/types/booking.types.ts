@@ -15,4 +15,7 @@ export interface Booking {
   clientNotes?: string
   providerNotes?: string
   cancellationReason?: string
+  zoomLink?: string | null
+  zoomMeetingId?: string | null
+  zoomPassword?: string | null
 }

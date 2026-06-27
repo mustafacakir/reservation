@@ -29,6 +29,7 @@ public class GetMyProfileQueryHandler(
             provider.HourlyRate,
             provider.Currency,
             provider.InstagramUrl,
-            provider.LinkedInUrl);
+            provider.LinkedInUrl,
+            provider.User.PhoneNumber);
     }
 }

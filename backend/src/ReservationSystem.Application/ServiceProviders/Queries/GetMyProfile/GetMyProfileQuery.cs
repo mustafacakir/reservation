@@ -14,5 +14,6 @@ public record MyProfileDto(
     decimal? HourlyRate,
     string Currency,
     string? InstagramUrl,
-    string? LinkedInUrl
+    string? LinkedInUrl,
+    string? PhoneNumber
 );

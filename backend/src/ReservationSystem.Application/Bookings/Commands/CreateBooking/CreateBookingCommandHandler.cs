@@ -13,6 +13,7 @@ public class CreateBookingCommandHandler(
     ICurrentUserService currentUser,
     ITenantService tenantService,
     IEmailService emailService,
+    ISmsService smsService,
     ILogger<CreateBookingCommandHandler> logger)
     : IRequestHandler<CreateBookingCommand, CreateBookingResult>
 {
@@ -118,6 +119,19 @@ public class CreateBookingCommandHandler(
                     service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword));
             }
             catch (Exception ex) { logger.LogError(ex, "Free booking confirmation email failed"); }
+
+            if (!string.IsNullOrWhiteSpace(service.Provider.User.PhoneNumber))
+            {
+                try
+                {
+                    var trTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+                    var localStart = TimeZoneInfo.ConvertTime(first.StartUtc, trTz);
+                    var dateStr = localStart.ToString("dd.MM.yyyy HH:mm");
+                    var smsText = $"Yeni rezervasyon: {client.FullName}, {service.Name}, {dateStr}";
+                    await smsService.SendAsync(service.Provider.User.PhoneNumber, smsText);
+                }
+                catch (Exception ex) { logger.LogError(ex, "Booking SMS notification failed"); }
+            }
         }, CancellationToken.None);
 
         var dto = new BookingDto(
