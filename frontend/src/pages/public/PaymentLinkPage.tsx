@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
-import { CalendarDays, User, CreditCard, ShieldCheck, CheckCircle, BookOpen } from 'lucide-react'
+import { CalendarDays, User, ShieldCheck, CheckCircle, BookOpen } from 'lucide-react'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

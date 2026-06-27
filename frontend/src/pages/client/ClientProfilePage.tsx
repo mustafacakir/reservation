@@ -139,7 +139,6 @@ function ProfileEditCard() {
     },
   })
 
-  const isDirty = (`${firstName.trim()} ${lastName.trim()}`.trim()) !== (fullName ?? '') || loadedSub
   const canSave = firstName.trim().length > 0
 
   const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white'
