@@ -16,5 +16,6 @@ public record AvailableSlotDto(
     bool IsGroup,
     int? MaxParticipants,
     int CurrentParticipants,
-    bool IsFull
+    bool IsFull,
+    bool IsBooked = false
 );

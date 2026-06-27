@@ -177,7 +177,7 @@ function SlotPicker({
             {slots.map((slot) => {
               const selected = slot.startUtc === selectedSlotStart
               const label = `${slot.startLocal} – ${slot.endLocal}`
-              const full = slot.isFull
+              const full = slot.isFull || slot.isBooked
               return (
                 <button
                   key={slot.startUtc}
@@ -200,6 +200,11 @@ function SlotPicker({
                         : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
                     >
                       {full ? 'DOLU' : `${slot.currentParticipants}/${slot.maxParticipants}`}
+                    </span>
+                  )}
+                  {!slot.isGroup && slot.isBooked && (
+                    <span className="text-[9px] font-bold px-1 rounded" style={{ background: '#fee2e2', color: '#dc2626' }}>
+                      DOLU
                     </span>
                   )}
                 </button>
@@ -844,6 +849,9 @@ function BookingPanel({
                         <> · {new Date(service.scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}{service.scheduledEnd ? `–${new Date(service.scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}{service.recurrenceWeeks ? ` · ${service.recurrenceWeeks} hafta` : ''}</>
                       )}
                     </p>
+                    {service.description && (
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{service.description}</p>
+                    )}
                   </div>
                   <span className="text-sm font-bold flex-shrink-0" style={{ color: Number(service.price) === 0 ? '#16a34a' : '#111827' }}>
                     {Number(service.price) === 0 ? 'Ücretsiz' : `₺${Number(service.price).toLocaleString('tr-TR')}`}

@@ -158,9 +158,13 @@ public class GetAvailableSlotsQueryHandler(
             .ToListAsync(cancellationToken);
 
         return candidates
-            .Where(slot => !existingBookings.Any(b =>
-                b.StartUtc < slot.EndUtc && b.EndUtc > slot.StartUtc))
-            .Select(slot => slot with { IsGroup = false, MaxParticipants = null, CurrentParticipants = 0, IsFull = false })
+            .Select(slot => slot with {
+                IsGroup = false,
+                MaxParticipants = null,
+                CurrentParticipants = 0,
+                IsFull = false,
+                IsBooked = existingBookings.Any(b => b.StartUtc < slot.EndUtc && b.EndUtc > slot.StartUtc)
+            })
             .ToList();
     }
 

@@ -10,10 +10,6 @@ const faqs = [
     a: 'Öğretmenlerimiz hem online hem de yüz yüze ders seçeneği sunabilmektedir. Öğretmen profil sayfasında bu bilgiyi görebilirsiniz.',
   },
   {
-    q: 'Rezervasyonumu iptal edebilir miyim?',
-    a: 'Evet, ders başlangıcından en az 24 saat önce ücretsiz iptal yapabilirsiniz. İptal talebinizi "Rezervasyonlarım" sayfasından iletebilirsiniz.',
-  },
-  {
     q: 'Öğretmen seçiminde neye dikkat etmeliyim?',
     a: 'Öğretmenin uzmanlık alanı, fiyatı ve öğrenci yorumlarını incelemenizi öneririz. Her öğretmenin profil sayfasında detaylı bilgi ve değerlendirmeler yer almaktadır.',
   },

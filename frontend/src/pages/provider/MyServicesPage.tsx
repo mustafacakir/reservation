@@ -87,7 +87,7 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
                 <button
                   key={type}
                   type="button"
-                  onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null, recurrenceWeeks: type === 'Individual' ? null : form.recurrenceWeeks })}
+                  onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null })}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
                     active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'
                   }`}
@@ -149,8 +149,7 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
             </div>
           )
         })()}
-        {isGroup && (
-          <div>
+        <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kaç Hafta Tekrarlansın?</label>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <button
@@ -182,7 +181,6 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
               </>
             )}
           </div>
-        )}
 
         {/* Duration + Price */}
         <div className="grid grid-cols-2 gap-3">
