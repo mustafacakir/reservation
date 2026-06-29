@@ -384,7 +384,8 @@ function KuveytTurkRedirect({ formContent }: { formContent: string }) {
   }, [formContent])
 
   useEffect(() => {
-    if (parsed) formRef.current?.submit()
+    if (parsed && formRef.current)
+      HTMLFormElement.prototype.submit.call(formRef.current)
   }, [parsed])
 
   if (!parsed) return null
