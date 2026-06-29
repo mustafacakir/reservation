@@ -21,7 +21,8 @@ public record ProviderDetailDto(
     bool IsAcceptingClients,
     List<ServiceDto> Services,
     string? InstagramUrl = null,
-    string? LinkedInUrl = null);
+    string? LinkedInUrl = null,
+    string? YoutubeUrl = null);
 
 public record ServiceDto(
     Guid Id,
@@ -70,6 +71,7 @@ public class GetProviderByIdQueryHandler(IApplicationDbContext db)
                     s.SessionType.ToString(), s.MaxParticipants, s.RecurrenceWeeks, s.ScheduledStart, s.ScheduledEnd))
                 .ToList(),
             provider.InstagramUrl,
-            provider.LinkedInUrl);
+            provider.LinkedInUrl,
+            provider.YoutubeUrl);
     }
 }

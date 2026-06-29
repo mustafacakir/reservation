@@ -15,5 +15,6 @@ public record MyProfileDto(
     string Currency,
     string? InstagramUrl,
     string? LinkedInUrl,
+    string? YoutubeUrl,
     string? PhoneNumber
 );

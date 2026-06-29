@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, User, CalendarDays, Clock, ChevronLeft, ChevronRight, BookOpen, Banknote, Link, Copy, Check, Mail } from 'lucide-react'
+import { Users, User, CalendarDays, ChevronLeft, ChevronRight, BookOpen, Banknote, Link, Copy, Check, Mail } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { useToast } from '@/components/ui/Toast'
@@ -194,9 +194,6 @@ function SlotPicker({
               })}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
-            <Clock size={11} /> Her ders {durationMinutes} dakika
-          </p>
         </div>
       )}
     </div>

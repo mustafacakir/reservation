@@ -153,9 +153,6 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
             })}
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
-          <Clock size={11} /> Her ders {durationMinutes} dakika
-        </p>
       </div>
     </div>
   )

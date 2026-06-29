@@ -30,6 +30,7 @@ public class GetMyProfileQueryHandler(
             provider.Currency,
             provider.InstagramUrl,
             provider.LinkedInUrl,
+            provider.YoutubeUrl,
             provider.User.PhoneNumber);
     }
 }

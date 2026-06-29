@@ -16,6 +16,7 @@ export interface ProviderDetail extends ProviderSummary {
   services: ServiceItem[]
   instagramUrl: string | null
   linkedInUrl: string | null
+  youtubeUrl: string | null
 }
 
 export interface ServiceItem {

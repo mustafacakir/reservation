@@ -31,7 +31,10 @@
       "Bash(docker build *)",
       "PowerShell(docker exec reservation-api *)",
       "PowerShell(docker compose *)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "Bash(npm install *)",
+      "PowerShell(Start-Process \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\"; Write-Host \"Docker Desktop starting...\")",
+      "Bash(xargs grep -l \"message\\\\|chat\")"
     ]
   }
 }

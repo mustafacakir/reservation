@@ -12,6 +12,7 @@ public class ServiceProvider : BaseEntity, ITenantEntity
     public string Currency { get; private set; } = "USD";
     public string? InstagramUrl { get; private set; }
     public string? LinkedInUrl { get; private set; }
+    public string? YoutubeUrl { get; private set; }
     public bool IsAcceptingClients { get; private set; } = true;
     public decimal AverageRating { get; private set; }
     public int TotalReviews { get; private set; }
@@ -36,7 +37,7 @@ public class ServiceProvider : BaseEntity, ITenantEntity
         };
     }
 
-    public void UpdateProfile(string bio, List<string> specializations, decimal? hourlyRate, string currency, string? instagramUrl = null, string? linkedInUrl = null)
+    public void UpdateProfile(string bio, List<string> specializations, decimal? hourlyRate, string currency, string? instagramUrl = null, string? linkedInUrl = null, string? youtubeUrl = null)
     {
         Bio = bio;
         Specializations = specializations;
@@ -44,6 +45,7 @@ public class ServiceProvider : BaseEntity, ITenantEntity
         Currency = currency;
         InstagramUrl = instagramUrl;
         LinkedInUrl = linkedInUrl;
+        YoutubeUrl = youtubeUrl;
         SetUpdatedAt();
     }
 

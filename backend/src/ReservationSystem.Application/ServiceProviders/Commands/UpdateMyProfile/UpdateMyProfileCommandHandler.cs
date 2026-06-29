@@ -23,7 +23,7 @@ public class UpdateMyProfileCommandHandler(
 
         user.UpdateProfile(request.FirstName, request.LastName, request.AvatarUrl, user.IsEmailSubscribed);
         user.SetPhoneNumber(request.PhoneNumber);
-        provider.UpdateProfile(request.Bio, request.Specializations, request.HourlyRate, request.Currency, request.InstagramUrl, request.LinkedInUrl);
+        provider.UpdateProfile(request.Bio, request.Specializations, request.HourlyRate, request.Currency, request.InstagramUrl, request.LinkedInUrl, request.YoutubeUrl);
 
         await db.SaveChangesAsync(cancellationToken);
     }

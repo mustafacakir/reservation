@@ -22,6 +22,15 @@ function LinkedInIcon({ size = 16 }: { size?: number }) {
     </svg>
   )
 }
+
+function YoutubeIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+      <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white" />
+    </svg>
+  )
+}
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -212,9 +221,6 @@ function SlotPicker({
             })}
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
-          <Clock size={11} /> Her ders {durationMinutes} dakika
-        </p>
       </div>
     </div>
   )
@@ -855,11 +861,11 @@ export default function ProviderProfilePage() {
               )}
 
               {/* Social links */}
-              {(provider.instagramUrl || provider.linkedInUrl) && (
+              {(provider.instagramUrl || provider.linkedInUrl || provider.youtubeUrl) && (
                 <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
                   {provider.instagramUrl && (
                     <a
-                      href={provider.instagramUrl}
+                      href={provider.instagramUrl.startsWith('http') ? provider.instagramUrl : `https://www.instagram.com/${provider.instagramUrl.replace(/^@/, '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50 transition-colors"
@@ -875,6 +881,16 @@ export default function ProviderProfilePage() {
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     >
                       <LinkedInIcon size={15} /> LinkedIn
+                    </a>
+                  )}
+                  {provider.youtubeUrl && (
+                    <a
+                      href={provider.youtubeUrl.startsWith('http') ? provider.youtubeUrl : `https://www.youtube.com/@${provider.youtubeUrl.replace(/^@/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <YoutubeIcon size={15} /> YouTube
                     </a>
                   )}
                 </div>
