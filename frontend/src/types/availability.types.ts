@@ -7,6 +7,7 @@ export interface AvailableSlot {
   maxParticipants: number | null
   currentParticipants: number
   isFull: boolean
+  isBooked: boolean
 }
 
 export interface WeeklySlot {
