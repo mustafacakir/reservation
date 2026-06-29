@@ -14,11 +14,12 @@ interface ServiceForm {
   name: string; description: string; durationMinutes: number
   price: number; currency: string; sessionType: 'Individual' | 'Group'
   maxParticipants: number | null; recurrenceWeeks: number | null
-  scheduledStart: string | null  // datetime-local: YYYY-MM-DDTHH:mm
-  scheduledEndTime: string | null  // time only: HH:mm (same day as scheduledStart)
+  scheduledStart: string | null
+  scheduledEndTime: string | null
   zoomLink: string | null
   zoomMeetingId: string | null
   zoomPassword: string | null
+  sortOrder: number
 }
 
 function utcToDatetimeLocal(utcStr: string): string {
@@ -43,7 +44,7 @@ function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: s
   return { blockMinutes, sessionCount, breakMinutes: BREAK }
 }
 
-const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null }
+const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null, sortOrder: 0 }
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent bg-white transition-colors'
 
 function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
@@ -68,6 +69,13 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ders Adı *</label>
           <input type="text" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="ör. Ortaokul Matematik" className={inputCls} />
+        </div>
+
+        {/* Sort order */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sıra Numarası</label>
+          <input type="number" min={0} value={form.sortOrder} onChange={(e) => set({ sortOrder: parseInt(e.target.value) || 0 })} placeholder="0" className={inputCls} />
+          <p className="text-xs text-gray-400 mt-1">Küçük numara önce görünür. Aynı numara varsa isme göre sıralanır.</p>
         </div>
 
         {/* Description */}
@@ -282,7 +290,7 @@ export default function MyServicesPage() {
       ...f,
       scheduledStart: f.scheduledStart ? new Date(f.scheduledStart).toISOString() : null,
       scheduledEnd,
-      scheduledEndTime: undefined,  // not a backend field
+      scheduledEndTime: undefined,
     }
   }
 
@@ -327,7 +335,7 @@ export default function MyServicesPage() {
             <ServiceFormPanel
               key={s.id}
               title="Dersi Düzenle"
-              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: s.sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: s.maxParticipants ?? null, recurrenceWeeks: s.recurrenceWeeks ?? null, scheduledStart: s.scheduledStart ? utcToDatetimeLocal(s.scheduledStart) : null, scheduledEndTime: s.scheduledEnd ? utcToTimeLocal(s.scheduledEnd) : null, zoomLink: s.zoomLink ?? null, zoomMeetingId: s.zoomMeetingId ?? null, zoomPassword: s.zoomPassword ?? null }}
+              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: s.sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: s.maxParticipants ?? null, recurrenceWeeks: s.recurrenceWeeks ?? null, scheduledStart: s.scheduledStart ? utcToDatetimeLocal(s.scheduledStart) : null, scheduledEndTime: s.scheduledEnd ? utcToTimeLocal(s.scheduledEnd) : null, zoomLink: s.zoomLink ?? null, zoomMeetingId: s.zoomMeetingId ?? null, zoomPassword: s.zoomPassword ?? null, sortOrder: (s as any).sortOrder ?? 0 }}
               onSave={(f) => updateMutation.mutate({ id: s.id, ...f })}
               onCancel={() => setEditingId(null)}
               isPending={updateMutation.isPending}

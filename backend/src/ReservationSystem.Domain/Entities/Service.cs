@@ -33,6 +33,8 @@ public class Service : BaseEntity, ITenantEntity
     public string? ZoomMeetingId { get; private set; }
     public string? ZoomPassword { get; private set; }
 
+    public int SortOrder { get; private set; } = 0;
+
     // Navigation
     public ServiceProvider Provider { get; private set; } = default!;
     public Tenant Tenant { get; private set; } = default!;
@@ -100,6 +102,7 @@ public class Service : BaseEntity, ITenantEntity
         SetUpdatedAt();
     }
 
+    public void SetSortOrder(int order) { SortOrder = order; SetUpdatedAt(); }
     public void Deactivate() { IsActive = false; SetUpdatedAt(); }
     public void Activate() { IsActive = true; SetUpdatedAt(); }
 }

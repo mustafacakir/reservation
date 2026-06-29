@@ -19,6 +19,7 @@ public record ServiceDto(
     string SessionType,
     int? MaxParticipants,
     int TotalBookings,
+    int SortOrder = 0,
     int? RecurrenceWeeks = null,
     DateTimeOffset? ScheduledStart = null,
     DateTimeOffset? ScheduledEnd = null,
@@ -42,7 +43,7 @@ public class GetMyServicesQueryHandler(
 
         return await db.Services
             .Where(s => s.ProviderId == provider.Id && s.IsActive)
-            .OrderBy(s => s.Name)
+            .OrderBy(s => s.SortOrder).ThenBy(s => s.Name)
             .Select(s => new ServiceDto(
                 s.Id,
                 s.Name,
@@ -57,6 +58,7 @@ public class GetMyServicesQueryHandler(
                     b.ServiceId == s.Id &&
                     b.Status != BookingStatus.Cancelled &&
                     b.Status != BookingStatus.NoShow),
+                s.SortOrder,
                 s.RecurrenceWeeks,
                 s.ScheduledStart,
                 s.ScheduledEnd,

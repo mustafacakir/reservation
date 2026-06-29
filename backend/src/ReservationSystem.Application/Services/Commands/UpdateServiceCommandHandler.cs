@@ -21,7 +21,8 @@ public record UpdateServiceCommand(
     DateTimeOffset? ScheduledEnd = null,
     string? ZoomLink = null,
     string? ZoomMeetingId = null,
-    string? ZoomPassword = null
+    string? ZoomPassword = null,
+    int SortOrder = 0
 ) : IRequest<ServiceDto>;
 
 public class UpdateServiceCommandHandler(
@@ -53,6 +54,7 @@ public class UpdateServiceCommandHandler(
             request.ScheduledStart,
             request.ScheduledEnd,
             request.ZoomLink, request.ZoomMeetingId, request.ZoomPassword);
+        service.SetSortOrder(request.SortOrder);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -63,7 +65,7 @@ public class UpdateServiceCommandHandler(
 
         return new ServiceDto(service.Id, service.Name, service.Description,
             service.DurationMinutes, service.Price, service.Currency, service.IsActive,
-            service.SessionType.ToString(), service.MaxParticipants, totalBookings,
+            service.SessionType.ToString(), service.MaxParticipants, totalBookings, service.SortOrder,
             service.RecurrenceWeeks, service.ScheduledStart, service.ScheduledEnd,
             service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword);
     }

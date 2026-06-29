@@ -47,6 +47,10 @@ export function useAppConfig() {
           offersInPerson: tenant.settings.offersInPerson,
           offersOnline: tenant.settings.offersOnline,
         })
+
+        const cfg = getSectorConfig(tenant.sector)
+        const subtitle = tenant.settings.customTagline ?? cfg.heroSubtitle
+        document.title = `${tenant.name} | ${subtitle}`
       })
       .catch((err) => {
         console.warn('[AppConfig] Could not load tenant config:', err)

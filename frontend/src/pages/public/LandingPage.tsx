@@ -162,7 +162,7 @@ export default function LandingPage() {
                   className="px-7 py-3.5 rounded-2xl text-sm font-bold text-white shadow-md transition-all hover:shadow-lg hover:scale-105"
                   style={{ background: 'var(--color-primary)' }}
                 >
-                  Öğretmeni Seç →
+                  {cfg.browseLabel} →
                 </a>
                 <a
                   href="#nasil-calisir"
@@ -268,7 +268,7 @@ export default function LandingPage() {
                     <span className="text-2xl">{cat.icon}</span>
                     <span className="text-xs font-semibold text-gray-700 leading-snug">{cat.label}</span>
                     {matched.length > 1 && (
-                      <span className="text-[9px] text-gray-400">{matched.length} öğretmen</span>
+                      <span className="text-[9px] text-gray-400">{matched.length} {cfg.providerLabel}</span>
                     )}
                   </a>
                 ) : (
@@ -297,7 +297,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
-              Öğretmenlerimiz
+              {cfg.providersHeading}
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto">
               Alanında uzman, sonuç odaklı {cfg.providerLabel}lerimizle tanışın
@@ -430,7 +430,7 @@ export default function LandingPage() {
               className="inline-block bg-white font-bold text-sm px-8 py-3.5 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
               style={{ color: 'var(--color-primary)' }}
             >
-              Öğretmeni Seç →
+              {cfg.browseLabel} →
             </a>
           </div>
         </section>
@@ -491,7 +491,6 @@ export default function LandingPage() {
                 <h4 className="text-white font-semibold text-sm mb-3">İletişim</h4>
                 <ul className="space-y-2 text-sm">
                   <li><Link to="/iletisim" className="hover:text-white transition-colors">İletişim Sayfası</Link></li>
-                  <li><a href="mailto:destek@sevdailematematik.com" className="hover:text-white transition-colors">destek@sevdailematematik.com</a></li>
                   <li><a href="tel:+905415740545" className="hover:text-white transition-colors">0541 574 05 45</a></li>
                 </ul>
               </div>

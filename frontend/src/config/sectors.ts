@@ -45,6 +45,7 @@ export interface SectorConfig {
   browseLabel: string
   providerLabel: string
   providersLabel: string
+  providersHeading: string
   clientLabel: string
   sessionLabel: string
   heroProviderTitle: string
@@ -80,6 +81,7 @@ const education: SectorConfig = {
   browseLabel: 'Öğretmenleri Gör',
   providerLabel: 'öğretmen',
   providersLabel: 'öğretmen',
+  providersHeading: 'Öğretmenlerimiz',
   clientLabel: 'öğrenci',
   sessionLabel: 'ders',
   heroProviderTitle: 'Özel Ders Öğretmeni',
@@ -148,6 +150,7 @@ const psychology: SectorConfig = {
   browseLabel: 'Uzmanları Gör',
   providerLabel: 'psikolog',
   providersLabel: 'psikolog',
+  providersHeading: 'Uzmanlarımız',
   clientLabel: 'danışan',
   sessionLabel: 'seans',
   heroProviderTitle: 'Klinik Psikolog',
@@ -213,6 +216,7 @@ const fitness: SectorConfig = {
   browseLabel: 'Antrenörleri Gör',
   providerLabel: 'antrenör',
   providersLabel: 'antrenör',
+  providersHeading: 'Antrenörlerimiz',
   clientLabel: 'danışan',
   sessionLabel: 'antrenman',
   heroProviderTitle: 'Kişisel Antrenör',
@@ -278,6 +282,7 @@ const legal: SectorConfig = {
   browseLabel: 'Avukatları Gör',
   providerLabel: 'avukat',
   providersLabel: 'avukat',
+  providersHeading: 'Avukatlarımız',
   clientLabel: 'müvekkil',
   sessionLabel: 'danışmanlık',
   heroProviderTitle: 'Avukat',
@@ -343,6 +348,7 @@ const coaching: SectorConfig = {
   browseLabel: 'Koçları Gör',
   providerLabel: 'koç',
   providersLabel: 'koç',
+  providersHeading: 'Koçlarımız',
   clientLabel: 'danışan',
   sessionLabel: 'oturum',
   heroProviderTitle: 'Yaşam & Kariyer Koçu',

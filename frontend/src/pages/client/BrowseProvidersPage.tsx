@@ -5,6 +5,7 @@ import { GraduationCap, Search, X } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import type { ProviderSummary } from '@/types/provider.types'
 import { useTenantStore } from '@/store/tenant.store'
+import { getSectorConfig } from '@/config/sectors'
 
 function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: string; size?: 'md' | 'lg' }) {
   const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -71,7 +72,8 @@ function ProviderCard({ provider }: { provider: ProviderSummary }) {
 }
 
 export default function BrowseProvidersPage() {
-  const slug = useTenantStore((s) => s.slug)
+  const { slug, sector } = useTenantStore()
+  const cfg = getSectorConfig(sector)
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
 
@@ -104,9 +106,9 @@ export default function BrowseProvidersPage() {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Öğretmenlerimiz</h1>
+        <h1 className="text-xl font-bold text-gray-900">{cfg.providersHeading}</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          {isLoading ? 'Yükleniyor…' : `${providers.length} öğretmen`}
+          {isLoading ? 'Yükleniyor…' : `${providers.length} ${cfg.providerLabel}`}
         </p>
       </div>
 

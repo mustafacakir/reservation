@@ -63,6 +63,7 @@ public class GetProviderByIdQueryHandler(IApplicationDbContext db)
             provider.IsAcceptingClients,
             provider.Services
                 .Where(s => s.IsActive)
+                .OrderBy(s => s.SortOrder).ThenBy(s => s.Name)
                 .Select(s => new ServiceDto(
                     s.Id, s.Name, s.Description,
                     s.DurationMinutes, s.Price, s.Currency,
