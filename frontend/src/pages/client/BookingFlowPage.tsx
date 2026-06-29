@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle, User } from 'lucide-react'
+import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useToast } from '@/components/ui/Toast'

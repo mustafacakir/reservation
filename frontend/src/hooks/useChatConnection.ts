@@ -20,7 +20,7 @@ let isConnecting = false
 export function useChatConnection() {
   const { accessToken, isAuthenticated } = useAuthStore()
   const { slug } = useTenantStore()
-  const { addMessage, setUnreadTotal } = useChatStore()
+  useChatStore()
   const connectionRef = useRef<HubConnection | null>(null)
 
   useEffect(() => {
