@@ -15,11 +15,6 @@ const features = [
     desc: 'Gizli ücret yok. Ders ücreti önceden bellidir, ödeme güvenli şekilde gerçekleşir.',
   },
   {
-    icon: '🔄',
-    title: 'Kolay İptal',
-    desc: '24 saat öncesine kadar ücretsiz iptal. Planlarınız değişirse sorun yaşamazsınız.',
-  },
-  {
     icon: '⭐',
     title: 'Değerlendirmeli Sistem',
     desc: 'Gerçek öğrencilerin yorumları sayesinde doğru öğretmeni kolayca seçin.',

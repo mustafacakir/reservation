@@ -8,7 +8,8 @@ interface LogoProps {
 
 export default function Logo({ size = 'md', className = '', white = false }: LogoProps) {
   const { name, slug } = useTenantStore()
-  const displayName = name || slug || 'Randevu'
+  const cached = typeof window !== 'undefined' ? localStorage.getItem('tenant-name') : null
+  const displayName = name || cached || slug || 'Randevu'
 
   const sizeClass = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-xl'
   const color = white ? '#fff' : 'var(--color-primary)'

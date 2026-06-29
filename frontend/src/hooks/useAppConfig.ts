@@ -48,6 +48,7 @@ export function useAppConfig() {
           offersOnline: tenant.settings.offersOnline,
         })
 
+        localStorage.setItem('tenant-name', tenant.name)
         const cfg = getSectorConfig(tenant.sector)
         const subtitle = tenant.settings.customTagline ?? cfg.heroSubtitle
         document.title = `${tenant.name} | ${subtitle}`

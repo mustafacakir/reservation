@@ -32,12 +32,6 @@ function getRegisterErrorMessage(error: unknown): string {
   return msg
 }
 
-const BENEFITS = [
-  'Uzman profesyonellerle birebir seans',
-  'İstediğin saat ve günde rezervasyon',
-  'Güvenli online ödeme',
-  '24 saat öncesine kadar ücretsiz iptal',
-]
 
 // ── Checkbox bileşeni ─────────────────────────────────────────────────────────
 
@@ -83,6 +77,12 @@ export default function RegisterPage() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const { sector } = useTenantStore()
   const sectorCfg = getSectorConfig(sector)
+
+  const BENEFITS = [
+    `Alanında uzman ${sectorCfg.providerLabel}lerle birebir ${sectorCfg.sessionLabel}`,
+    'İstediğin saat ve günde rezervasyon',
+    'Güvenli online ödeme',
+  ]
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),

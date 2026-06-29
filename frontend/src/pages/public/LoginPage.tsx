@@ -16,18 +16,18 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-const FEATURES = [
-  { Icon: CalendarCheck, text: 'Kolayca rezervasyon yapın' },
-  { Icon: Star, text: 'Uzman profesyonellerle çalışın' },
-  { Icon: Shield, text: 'Güvenli ödeme altyapısı' },
-]
-
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const setAuth = useAuthStore((s) => s.setAuth)
   const { sector } = useTenantStore()
   const sectorCfg = getSectorConfig(sector)
+
+  const FEATURES = [
+    { Icon: CalendarCheck, text: 'Kolayca rezervasyon yapın' },
+    { Icon: Star, text: `Alanında uzman ${sectorCfg.providerLabel}lerle çalışın` },
+    { Icon: Shield, text: 'Güvenli ödeme altyapısı' },
+  ]
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({

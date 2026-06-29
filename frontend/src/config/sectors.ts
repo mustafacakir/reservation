@@ -117,8 +117,9 @@ const education: SectorConfig = {
     { q: 'Dersler online mı, yüz yüze mi?', a: 'Her iki seçenek de mevcuttur. Rezervasyon sırasında tercihini belirtebilirsin.' },
     { q: 'İlk derste ne yapılır?', a: 'İlk ders tanışma ve seviye tespiti odaklıdır. Hedefleriniz belirlenir, kişiselleştirilmiş bir çalışma planı oluşturulur.' },
     { q: 'Ders ücreti nasıl belirleniyor?', a: 'Her ders türünün sabit bir ücreti vardır. Rezervasyon öncesinde fiyatı şeffaf şekilde görebilirsiniz. Gizli ücret yoktur.' },
-    { q: 'Rezervasyonumu iptal edebilir miyim?', a: 'Ders başlangıcından 24 saat öncesine kadar ücretsiz iptal yapabilirsiniz.' },
     { q: 'Hangi sınavlara hazırlanabilirim?', a: 'TYT, AYT, DGS, ALES, KPSS ve YKS sınavlarına yönelik hazırlık programları sunulmaktadır.' },
+    { q: 'Grup derslerinde iptal veya iade var mı?', a: 'Grup derslerinde rezervasyon iptal edilemez ve ücret iadesi yapılmaz.' },
+    { q: 'Bireysel derslerde iptal veya değişiklik yapabilir miyim?', a: 'Bireysel derslerde ücret iadesi yapılmaz. Ders başlangıcından en az 24 saat önce başvurulması halinde yalnızca tarih değişimi talep edilebilir. Tarih değişimi hakkı rezervasyon başına 1 kez kullanılabilir.' },
   ],
   testimonials: [
     { name: 'Elif K.', role: 'TYT Öğrencisi', avatar: 'EK', text: 'TYT matematikte çok ciddi bir ilerleme kaydettim. Konuları çok net anlatıyor. Kesinlikle tavsiye ederim!', rating: 5 },
@@ -186,7 +187,6 @@ const psychology: SectorConfig = {
     { q: 'Seanslar gizli midir?', a: 'Evet, tüm görüşmeler KVKK kapsamında gizli tutulmaktadır. Bilgileriniz üçüncü şahıslarla paylaşılmaz.' },
     { q: 'İlk seansta ne beklenmeli?', a: 'İlk seans tanışma ve ihtiyaç değerlendirmesidir. Kendinizi anlatmanız beklenir, herhangi bir yargılama yoktur.' },
     { q: 'Online seans yüz yüze kadar etkili mi?', a: 'Araştırmalar online terapinin birçok alanda yüz yüze kadar etkili olduğunu göstermektedir.' },
-    { q: 'Seansı iptal edebilir miyim?', a: '24 saat öncesine kadar ücretsiz iptal yapabilirsiniz.' },
     { q: 'Acil durumda ne yapmalıyım?', a: 'Acil psikolojik kriz durumunda 182 (ALO Psikiyatri) hattını veya 112\'yi arayabilirsiniz.' },
   ],
   testimonials: [
@@ -253,7 +253,6 @@ const fitness: SectorConfig = {
     { q: 'İlk seansta ne olur?', a: 'İlk seans form analizi ve hedef belirleme odaklıdır. Kişisel antrenman planınız oluşturulur.' },
     { q: 'Ekipman gerekli mi?', a: 'Antrenörünüzle önceden görüşerek gereken ekipmanları öğrenebilirsiniz. Birçok antrenman minimal ekipmanla yapılabilir.' },
     { q: 'Kaç seansta sonuç alınır?', a: 'Hedefe ve başlangıç noktanıza göre değişir. Çoğu kişi 4-8 haftada belirgin farklılık fark eder.' },
-    { q: 'Antrenmanı iptal edebilir miyim?', a: '24 saat öncesine kadar ücretsiz iptal yapabilirsiniz.' },
   ],
   testimonials: [
     { name: 'Burak Y.', role: 'Ofis Çalışanı', avatar: 'BY', text: '4 ayda 12 kg verdim. Rezervasyon sistemi tutarlı kalmamı çok kolaylaştırdı.', rating: 5 },
@@ -318,7 +317,6 @@ const legal: SectorConfig = {
     { q: 'Online danışmanlık hukuki geçerliliği var mı?', a: 'Hukuki danışmanlık online olarak alınabilir. Resmi belgeler için avukatınız size yönlendirme yapacaktır.' },
     { q: 'İlk görüşmede ne konuşulur?', a: 'Durumunuzu aktarırsınız, avukat olası adımları ve riskleri değerlendirerek görüşünü paylaşır.' },
     { q: 'Ücret nasıl belirleniyor?', a: 'Her danışmanlığın sabit ücreti vardır. Ek dava ve temsil ücretleri avukatınızla ayrıca görüşülür.' },
-    { q: 'Randevuyu iptal edebilir miyim?', a: '24 saat öncesine kadar ücretsiz iptal yapabilirsiniz.' },
     { q: 'Aynı konuda birden fazla avukatla görüşebilir miyim?', a: 'Evet, farklı görüşler almak için birden fazla avukatla danışma yapabilirsiniz.' },
   ],
   testimonials: [
@@ -384,7 +382,6 @@ const coaching: SectorConfig = {
     { q: 'Koçluk terapiden farkı nedir?', a: 'Koçluk geleceğe odaklanır ve hedef belirlemeye yardımcı olur. Terapi geçmiş ve ruhsal iyileşme odaklıdır.' },
     { q: 'Kaç oturumda sonuç alınır?', a: 'Hedeflere göre değişir. Çoğu danışan 4-6 oturumda belirgin değişimler yaşar.' },
     { q: 'Oturumlar nasıl gerçekleşiyor?', a: 'Oturumlar online video görüşme ile gerçekleşir. Dilediğiniz yerden katılabilirsiniz.' },
-    { q: 'Oturumu iptal edebilir miyim?', a: '24 saat öncesine kadar ücretsiz iptal yapabilirsiniz.' },
     { q: 'Koçumla oturumlar arası iletişim kurabilir miyim?', a: 'Platform üzerinden mesajlaşabilir ve notlar paylaşabilirsiniz.' },
   ],
   testimonials: [
