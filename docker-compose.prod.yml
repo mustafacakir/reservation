@@ -54,6 +54,14 @@ services:
       - Iyzico__BaseUrl=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
       - Iyzico__CallbackUrl=http://${SERVER_HOST}/api/v1/payments/callback
       - Iyzico__FrontendBaseUrl=http://${SERVER_HOST}
+      - KuveytTurk__MerchantId=${KT_MERCHANT_ID}
+      - KuveytTurk__UserName=${KT_USERNAME}
+      - KuveytTurk__Password=${KT_PASSWORD}
+      - KuveytTurk__CustomerNumber=${KT_CUSTOMER_NUMBER}
+      - KuveytTurk__TestMode=${KT_TEST_MODE:-false}
+      - KuveytTurk__OkUrl=https://${SERVER_HOST}/api/v1/payments/kuveytturk/callback
+      - KuveytTurk__FailUrl=https://${SERVER_HOST}/api/v1/payments/kuveytturk/fail
+      - KuveytTurk__FrontendBaseUrl=https://${SERVER_HOST}
       - Email__SmtpUsername=${EMAIL_SMTP_USERNAME}
       - Email__SmtpPassword=${EMAIL_SMTP_PASSWORD}
       - Email__FromEmail=${EMAIL_FROM}

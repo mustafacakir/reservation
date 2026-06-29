@@ -184,7 +184,7 @@ public class KuveytTurkPaymentService(
 
         var client = httpClientFactory.CreateClient("KuveytTurk");
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        cts.CancelAfter(TimeSpan.FromSeconds(60));
 
         string responseXml;
         try
