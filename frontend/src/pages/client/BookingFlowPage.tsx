@@ -614,7 +614,7 @@ export default function BookingFlowPage() {
               placeholder="Lütfen almak istediğiniz ders hakkında detaylı bilgi yazınız (Sınav, konu, ders türü vb.)"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:border-transparent"
               style={{ '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
-              rows={3}
+              rows={5}
             />
           </div>
 

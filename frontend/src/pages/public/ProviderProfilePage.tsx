@@ -850,7 +850,7 @@ function BookingPanel({
                       )}
                     </p>
                     {service.description && (
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{service.description}</p>
+                      <div className="text-xs text-gray-500 mt-1 leading-relaxed prose prose-xs max-w-none [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_em]:italic" dangerouslySetInnerHTML={{ __html: service.description }} />
                     )}
                   </div>
                   <span className="text-sm font-bold flex-shrink-0" style={{ color: Number(service.price) === 0 ? '#16a34a' : '#111827' }}>
@@ -929,7 +929,7 @@ function BookingPanel({
             value={clientNotes}
             onChange={e => setClientNotes(e.target.value)}
             placeholder="Lütfen almak istediğiniz ders hakkında detaylı bilgi yazınız (Sınav, konu, ders türü vb.)"
-            rows={2}
+            rows={5}
             className="w-full mb-3 px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:border-transparent placeholder-gray-400"
             style={{ '--tw-ring-color': 'var(--color-primary)' } as any}
           />
