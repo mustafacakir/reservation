@@ -451,6 +451,7 @@ export default function ProviderProfilePage() {
   const [iframeToken, setIframeToken] = useState<string | null>(null)
   const [ktFormContent, setKtFormContent] = useState<string | null>(null)
   const [showCardForm, setShowCardForm] = useState(false)
+  const [showSummary, setShowSummary] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState(false)
 
@@ -527,6 +528,17 @@ export default function ProviderProfilePage() {
     },
   })
 
+  const resetBooking = () => {
+    setBookingSuccess(false)
+    setDuplicateWarning(false)
+    setShowSummary(false)
+    setShowCardForm(false)
+    setSelectedServiceId(null)
+    setSelectedSlotStart(null)
+    setSelectedSlotLabel(null)
+    setClientNotes('')
+  }
+
   const handlePay = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } })
@@ -534,11 +546,7 @@ export default function ProviderProfilePage() {
     }
     if (!selectedServiceId || !provider) return
     if (!isSelectedFixed && !selectedSlotStart) return
-    if (isSelectedFree) {
-      freeBookMutation.mutate()
-      return
-    }
-    setShowCardForm(true)
+    setShowSummary(true)
   }
 
   if (isLoading) {
@@ -581,14 +589,172 @@ export default function ProviderProfilePage() {
     isSelectedFree,
     bookingSuccess,
     duplicateWarning,
-    onResetBooking: () => {
-      setBookingSuccess(false)
-      setDuplicateWarning(false)
-      setSelectedServiceId(null)
-      setSelectedSlotStart(null)
-      setSelectedSlotLabel(null)
-      setClientNotes('')
-    },
+    onResetBooking: resetBooking,
+  }
+
+  if (showSummary && selectedService) {
+    const slotDate = isSelectedFixed
+      ? new Date(selectedService.scheduledStart!)
+      : selectedSlotStart ? new Date(selectedSlotStart) : null
+
+    const dateLabel = slotDate
+      ? slotDate.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const timeLabel = slotDate
+      ? slotDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      : ''
+
+    if (bookingSuccess) {
+      return (
+        <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center text-center space-y-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #3730a3) 100%)' }}>
+              <CheckCircle size={44} className="text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ring-4 ring-white">
+              <span className="text-white text-sm font-bold">✓</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-extrabold text-gray-900">Rezervasyonunuz Oluşturuldu!</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">Onay detayları e-posta adresinize gönderildi.</p>
+          </div>
+          <div className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-left space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <CalendarDays size={16} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Tarih & Saat</p>
+                <p className="text-sm font-bold text-gray-900">{dateLabel} {timeLabel}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <Clock size={16} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Ders</p>
+                <p className="text-sm font-bold text-gray-900">{selectedService.name}</p>
+              </div>
+            </div>
+          </div>
+          <div className="w-full space-y-3 pt-2">
+            <button onClick={() => navigate(`/providers/${id}`)}
+              className="w-full py-4 rounded-2xl text-base font-bold text-white shadow-md transition-opacity hover:opacity-90"
+              style={{ background: 'var(--color-primary)' }}>
+              Başka Ders Seç
+            </button>
+            <button onClick={() => navigate('/client/bookings')}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
+              Rezervasyonlarım
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="max-w-lg mx-auto space-y-4 px-4 py-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowSummary(false)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500 flex-shrink-0">
+            <ChevronLeft size={20} />
+          </button>
+          <h2 className="text-lg font-bold text-gray-900">Rezervasyon Özeti</h2>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-4 p-5" style={{ background: 'var(--color-primary-light)' }}>
+            {provider.avatarUrl
+              ? <img src={provider.avatarUrl} alt={provider.fullName} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 ring-2 ring-white" />
+              : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>
+                  {provider.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+            }
+            <div className="min-w-0">
+              <p className="text-base font-bold text-gray-900 truncate">{provider.fullName}</p>
+              <p className="text-sm font-semibold mt-0.5 truncate" style={{ color: 'var(--color-primary)' }}>{selectedService.name}</p>
+            </div>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            <div className="flex items-center gap-4 px-5 py-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <CalendarDays size={18} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tarih & Saat</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">{dateLabel}</p>
+                <p className="text-sm text-gray-500">{timeLabel}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-5 py-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <Clock size={18} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Süre</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">{selectedService.durationMinutes} dakika</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4">
+              <span className="text-base font-semibold text-gray-700">Toplam Ücret</span>
+              <span className="text-2xl font-extrabold" style={{ color: isSelectedFree ? '#16a34a' : '#111827' }}>
+                {isSelectedFree ? 'Ücretsiz' : `₺${Number(selectedService.price).toLocaleString('tr-TR')}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {clientNotes && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Notunuz</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{clientNotes}</p>
+          </div>
+        )}
+
+        {duplicateWarning && (
+          <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 font-medium leading-relaxed">Bu derse zaten kayıtlısınız.</p>
+          </div>
+        )}
+
+        {isSelectedFree ? (
+          <button
+            onClick={() => freeBookMutation.mutate()}
+            disabled={freeBookMutation.isPending}
+            className="w-full py-4 rounded-2xl text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {freeBookMutation.isPending ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> İşleniyor…</span> : 'Rezervasyonu Onayla →'}
+          </button>
+        ) : (
+          <button
+            onClick={() => { setShowSummary(false); setShowCardForm(true) }}
+            className="w-full py-4 rounded-2xl text-base font-bold text-white transition-opacity hover:opacity-90 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {`Ödemeye Geç → ₺${Number(selectedService.price).toLocaleString('tr-TR')}`}
+          </button>
+        )}
+
+        {!isSelectedFree && (
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+              <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — KuveytTürk 3D Secure</p>
+              <p className="text-xs text-gray-400">Kart bilgileriniz 3D Secure ve SSL ile güvence altındadır.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (showCardForm && selectedService) {
@@ -596,7 +762,7 @@ export default function ProviderProfilePage() {
       <KuveytTurkCardForm
         price={selectedService.price}
         isLoading={payMutation.isPending}
-        onBack={() => setShowCardForm(false)}
+        onBack={() => { setShowCardForm(false); setShowSummary(true) }}
         onSubmit={(card) => payMutation.mutate(card)}
       />
     )
