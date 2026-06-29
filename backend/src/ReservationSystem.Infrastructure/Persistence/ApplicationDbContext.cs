@@ -26,6 +26,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AvailabilityException> AvailabilityExceptions => Set<AvailabilityException>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Message> Messages => Set<Message>();
 
     // EF Core evaluates this property on the CURRENT context instance at query time
     // (not the instance from OnModelCreating, which is why we expose it as a property)

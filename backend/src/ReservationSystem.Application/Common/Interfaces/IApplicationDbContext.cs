@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<AvailabilityException> AvailabilityExceptions { get; }
     DbSet<Booking> Bookings { get; }
     DbSet<Review> Reviews { get; }
+    DbSet<Message> Messages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

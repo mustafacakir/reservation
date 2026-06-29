@@ -4,6 +4,7 @@ using ReservationSystem.Infrastructure;
 using ReservationSystem.Infrastructure.Persistence.Seeders;
 using ReservationSystem.Infrastructure.Tenancy;
 using ReservationSystem.API.Middleware;
+using ReservationSystem.API.Hubs;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,9 @@ builder.Host.UseSerilog();
 // Application layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// SignalR
+builder.Services.AddSignalR();
 
 // API
 builder.Services.AddControllers();
@@ -87,6 +91,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();

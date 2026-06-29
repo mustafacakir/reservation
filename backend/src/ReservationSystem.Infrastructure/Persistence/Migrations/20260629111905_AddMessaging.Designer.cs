@@ -3,19 +3,19 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReservationSystem.Infrastructure.Persistence;
 
 #nullable disable
-
-namespace ReservationSystem.Infrastructure.Persistence.Migrations
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260629111905_AddMessaging")]
+partial class AddMessaging
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    /// <inheritdoc />
+    protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
-        {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.11")
@@ -767,4 +767,3 @@ namespace ReservationSystem.Infrastructure.Persistence.Migrations
 #pragma warning restore 612, 618
         }
     }
-}

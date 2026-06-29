@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { useChatStore } from '@/store/chat.store'
+import { useChatConnection } from '@/hooks/useChatConnection'
 import Logo from '@/components/landing/Logo'
 import {
-  LayoutDashboard, UserCircle, Clock, BookOpen, CalendarPlus, LogOut, Menu, X,
+  LayoutDashboard, UserCircle, Clock, BookOpen, CalendarPlus, LogOut, Menu, X, MessageCircle,
 } from 'lucide-react'
 
 const navItems = [
-  { to: '/provider',                  label: 'Genel Bakış',      Icon: LayoutDashboard, end: true },
-  { to: '/provider/profile',          label: 'Profilim',         Icon: UserCircle },
-  { to: '/provider/availability',     label: 'Müsaitlik',        Icon: Clock },
-  { to: '/provider/services',         label: 'Derslerim',        Icon: BookOpen },
-  { to: '/provider/rezervasyon-ekle', label: 'Rezervasyon Ekle', Icon: CalendarPlus },
+  { to: '/provider',                  label: 'Genel Bakış',      Icon: LayoutDashboard, end: true,  badge: false },
+  { to: '/provider/profile',          label: 'Profilim',         Icon: UserCircle,      end: false, badge: false },
+  { to: '/provider/availability',     label: 'Müsaitlik',        Icon: Clock,           end: false, badge: false },
+  { to: '/provider/services',         label: 'Derslerim',        Icon: BookOpen,        end: false, badge: false },
+  { to: '/provider/messages',         label: 'Mesajlar',         Icon: MessageCircle,   end: false, badge: true  },
+  { to: '/provider/rezervasyon-ekle', label: 'Rezervasyon Ekle', Icon: CalendarPlus,    end: false, badge: false },
 ]
 
 export default function ProviderLayout() {
@@ -19,6 +22,10 @@ export default function ProviderLayout() {
   const navigate = useNavigate()
   const initials = fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { unreadTotal } = useChatStore()
+
+  // Start hub connection for the duration of the layout lifetime
+  useChatConnection()
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -37,7 +44,7 @@ export default function ProviderLayout() {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, label, Icon, end }) => (
+        {navItems.map(({ to, label, Icon, end, badge }) => (
           <NavLink
             key={to}
             to={to}
@@ -55,7 +62,17 @@ export default function ProviderLayout() {
             {({ isActive }) => (
               <>
                 <Icon size={15} className={isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'} />
-                <span>{label}</span>
+                <span className="flex-1">{label}</span>
+                {badge && unreadTotal > 0 && (
+                  <span
+                    className={`text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      isActive ? 'bg-white' : 'text-white'
+                    }`}
+                    style={isActive ? { color: 'var(--color-primary)' } : { background: 'var(--color-primary)' }}
+                  >
+                    {unreadTotal > 9 ? '9+' : unreadTotal}
+                  </span>
+                )}
               </>
             )}
           </NavLink>
@@ -123,6 +140,17 @@ export default function ProviderLayout() {
           <Link to="/"><Logo size="sm" /></Link>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/provider/messages" className="relative p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+            <MessageCircle size={20} />
+            {unreadTotal > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {unreadTotal > 9 ? '9+' : unreadTotal}
+              </span>
+            )}
+          </Link>
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white"
             style={{ background: 'var(--color-primary)' }}

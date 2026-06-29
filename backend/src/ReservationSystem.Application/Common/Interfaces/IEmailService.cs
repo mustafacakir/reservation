@@ -14,10 +14,19 @@ public record BookingEmailData(
     string? ZoomPassword = null
 );
 
+public record MessageNotificationData(
+    string RecipientEmail,
+    string RecipientName,
+    string SenderName,
+    string MessagePreview,
+    string MessagesUrl
+);
+
 public interface IEmailService
 {
     Task SendBookingConfirmationAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendBookingCancellationAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendBookingReminderAsync(BookingEmailData data, CancellationToken ct = default);
     Task SendPaymentLinkAsync(BookingEmailData data, string paymentLinkToken, CancellationToken ct = default);
+    Task SendNewMessageNotificationAsync(MessageNotificationData data, CancellationToken ct = default);
 }

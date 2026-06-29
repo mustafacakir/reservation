@@ -25,6 +25,7 @@ import MyBookingsPage from '@/pages/client/MyBookingsPage'
 import BookingFlowPage from '@/pages/client/BookingFlowPage'
 import PaymentResultPage from '@/pages/client/PaymentResultPage'
 import ClientAccountPage from '@/pages/client/ClientAccountPage'
+import ClientMessagesPage from '@/pages/client/MessagesPage'
 
 // Provider pages
 import ProviderDashboard from '@/pages/provider/DashboardPage'
@@ -32,6 +33,7 @@ import AvailabilityPage from '@/pages/provider/AvailabilityPage'
 import MyServicesPage from '@/pages/provider/MyServicesPage'
 import ProfilePage from '@/pages/provider/ProfilePage'
 import ManualBookingPage from '@/pages/provider/ManualBookingPage'
+import ProviderMessagesPage from '@/pages/provider/MessagesPage'
 
 // Admin pages
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
@@ -68,6 +70,7 @@ export const router = createBrowserRouter([
       { path: 'book/:providerId/:serviceId', element: <BookingFlowPage /> },
       { path: 'payment-result', element: <PaymentResultPage /> },
       { path: 'account', element: <ClientAccountPage /> },
+      { path: 'messages', element: <ClientMessagesPage /> },
     ],
   },
   {
@@ -79,6 +82,7 @@ export const router = createBrowserRouter([
       { path: 'availability', element: <AvailabilityPage /> },
       { path: 'services', element: <MyServicesPage /> },
       { path: 'rezervasyon-ekle', element: <ManualBookingPage /> },
+      { path: 'messages', element: <ProviderMessagesPage /> },
     ],
   },
   {

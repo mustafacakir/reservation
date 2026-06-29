@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
-import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
+import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
 
 function InstagramIcon({ size = 16 }: { size?: number }) {
   return (
@@ -682,6 +682,30 @@ export default function ProviderProfilePage() {
                       <LinkedInIcon size={15} /> LinkedIn
                     </a>
                   )}
+                </div>
+              )}
+
+              {/* Message button — only for logged-in clients */}
+              {isAuthenticated && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/client/messages?userId=${provider.userId}&providerId=${provider.id}&name=${encodeURIComponent(provider.fullName)}`
+                      )
+                    }
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors"
+                    style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                    onMouseOver={(e) => {
+                      ;(e.currentTarget as HTMLButtonElement).style.background =
+                        'var(--color-primary-light)'
+                    }}
+                    onMouseOut={(e) => {
+                      ;(e.currentTarget as HTMLButtonElement).style.background = ''
+                    }}
+                  >
+                    <MessageCircle size={15} /> Mesaj Gönder
+                  </button>
                 </div>
               )}
             </div>

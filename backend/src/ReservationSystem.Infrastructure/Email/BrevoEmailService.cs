@@ -199,6 +199,24 @@ public class BrevoEmailService(
                 ReminderHtml(d, toProvider: false), ics, ct);
     }
 
+    public async Task SendNewMessageNotificationAsync(MessageNotificationData d, CancellationToken ct = default)
+    {
+        var html = $@"<div style='font-family:Arial,sans-serif;max-width:560px;margin:0 auto'>
+<h2 style='color:#4f46e5'>Yeni Mesajınız Var</h2>
+<p>Merhaba <strong>{d.RecipientName}</strong>, <strong>{d.SenderName}</strong> size bir mesaj gönderdi.</p>
+<div style='margin:16px 0;padding:16px;background:#f9fafb;border-left:4px solid #4f46e5;border-radius:4px'>
+  <p style='margin:0;color:#374151;font-style:italic'>&ldquo;{d.MessagePreview}&rdquo;</p>
+</div>
+<div style='text-align:center;margin:24px 0'>
+  <a href='{d.MessagesUrl}' style='display:inline-block;padding:12px 28px;background:#4f46e5;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px'>Mesajı Görüntüle</a>
+</div>
+<p style='color:#6b7280;font-size:13px;margin-top:24px'>Bu bildirim otomatik gönderilmiştir.</p></div>";
+
+        await SendAsync(d.RecipientEmail, d.RecipientName,
+            $"Yeni mesaj: {d.SenderName}",
+            html, icsContent: null, ct);
+    }
+
     private async Task SendAsync(string toEmail, string toName, string subject,
         string html, string? icsContent, CancellationToken ct)
     {
