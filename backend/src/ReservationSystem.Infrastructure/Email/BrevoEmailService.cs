@@ -190,12 +190,12 @@ public class BrevoEmailService(
     {
         var ics = GenerateIcs(d);
         await SendAsync(d.ProviderEmail, d.ProviderName,
-            $"Yarın Dersiniz Var: {d.ClientName}",
+            $"Bugün Dersiniz Var: {d.ClientName}",
             ReminderHtml(d, toProvider: true), ics, ct);
 
         if (HasSeparateClient(d))
             await SendAsync(d.ClientEmail!, d.ClientName,
-                $"Yarın Dersiniz Var: {d.ServiceName}",
+                $"Bugün Dersiniz Var: {d.ServiceName}",
                 ReminderHtml(d, toProvider: false), ics, ct);
     }
 

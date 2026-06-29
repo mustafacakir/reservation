@@ -22,6 +22,11 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:5005',
         changeOrigin: true,
       },
+      '/hubs': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:5005',
+        changeOrigin: true,
+        ws: true,
+      },
     },
     // Windows host + Docker volume mount: filesystem events don't propagate,
     // so Vite must poll for changes instead of relying on inotify.

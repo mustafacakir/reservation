@@ -61,7 +61,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/client',
-    element: <ProtectedRoute allowedRoles={['Client', 'ServiceProvider']}><ClientLayout /></ProtectedRoute>,
+    element: <ProtectedRoute allowedRoles={['Client', 'ServiceProvider', 'Admin', 'SuperAdmin']}><ClientLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <Navigate to="bookings" replace /> },
       { path: 'profile', element: <Navigate to="/client/account" replace /> },

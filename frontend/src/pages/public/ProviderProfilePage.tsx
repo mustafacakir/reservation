@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation } from '@tanstack/react-query'
-import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
+import { Clock, ChevronLeft, CalendarDays, ArrowRight, UserCheck, Users, X, ShieldCheck, Loader2, CreditCard, CheckCircle, AlertCircle, MessageCircle, Share2 } from 'lucide-react'
 
 function InstagramIcon({ size = 16 }: { size?: number }) {
   return (
@@ -618,8 +618,36 @@ export default function ProviderProfilePage() {
           <ChevronLeft size={18} />
           Geri
         </button>
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 -translate-y-1/3 translate-x-1/4" style={{ background: 'white' }} />
-        <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full opacity-10 translate-y-1/2" style={{ background: 'white' }} />
+        <button
+          onClick={() => {
+            const url = window.location.href
+            const fallback = () => {
+              const el = document.createElement('input')
+              el.value = url
+              el.setAttribute('readonly', '')
+              el.style.cssText = 'position:absolute;left:-9999px'
+              document.body.appendChild(el)
+              el.select()
+              el.setSelectionRange(0, 99999)
+              document.execCommand('copy')
+              document.body.removeChild(el)
+              toast.success('Bağlantı kopyalandı!')
+            }
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(url)
+                .then(() => toast.success('Bağlantı kopyalandı!'))
+                .catch(fallback)
+            } else {
+              fallback()
+            }
+          }}
+          className="absolute top-5 right-4 sm:right-6 flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
+        >
+          <Share2 size={18} />
+          Paylaş
+        </button>
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 -translate-y-1/3 translate-x-1/4 pointer-events-none" style={{ background: 'white' }} />
+        <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full opacity-10 translate-y-1/2 pointer-events-none" style={{ background: 'white' }} />
       </div>
 
       {/* ── Content ── */}

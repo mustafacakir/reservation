@@ -22,7 +22,7 @@ export default function Logo({ size = 'md', className = '', white = false }: Log
     <span className={`font-extrabold tracking-tight ${sizeClass} ${className}`} style={{ color }}>
       {baseName}
       {hasSuperscript && (
-        <sup style={{ fontSize: '0.45em', letterSpacing: 0, fontStyle: 'normal', color: darkColor, opacity: 0.85 }}>²</sup>
+        <sup style={{ fontSize: '0.65em', letterSpacing: 0, fontStyle: 'normal', color: darkColor, opacity: 0.85 }}>²</sup>
       )}
     </span>
   )

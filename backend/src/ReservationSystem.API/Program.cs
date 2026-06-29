@@ -27,7 +27,7 @@ builder.Host.UseSerilog();
 
 // Application layers
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 // SignalR
 builder.Services.AddSignalR();

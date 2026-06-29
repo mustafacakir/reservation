@@ -31,8 +31,8 @@ public class BookingReminderBackgroundService(
         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
         var now = DateTimeOffset.UtcNow;
-        var windowStart = now.AddHours(23);  // between 23h and 25h from now
-        var windowEnd = now.AddHours(25);
+        var windowStart = now.AddHours(11);  // between 11h and 13h from now (~12h reminder)
+        var windowEnd = now.AddHours(13);
 
         var bookings = await db.Bookings
             .IgnoreQueryFilters()

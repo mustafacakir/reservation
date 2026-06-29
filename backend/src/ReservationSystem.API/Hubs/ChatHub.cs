@@ -59,33 +59,40 @@ public class ChatHub(
         // Confirm to sender
         await Clients.Caller.SendAsync("ReceiveMessage", dto);
 
-        // Background email notification
-        _ = Task.Run(async () =>
+        // Background email notification — only for the first unread message in this conversation.
+        // If the recipient already has unread messages from this sender, they were already notified.
+        var unreadCount = await db.Messages
+            .CountAsync(m => m.FromUserId == fromUserId && m.ToUserId == toUserId && !m.IsRead);
+
+        if (unreadCount == 1)
         {
-            try
+            _ = Task.Run(async () =>
             {
-                var toUser = await db.Users
-                    .IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(u => u.Id == toUserId);
-
-                if (toUser?.Email is not null)
+                try
                 {
-                    var preview = content.Length > 120 ? content[..120] + "…" : content;
-                    var messagesUrl = $"{GetAppBaseUrl()}/client/messages";
+                    var toUser = await db.Users
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(u => u.Id == toUserId);
 
-                    await emailService.SendNewMessageNotificationAsync(new MessageNotificationData(
-                        toUser.Email,
-                        toUser.FullName,
-                        fromUser?.FullName ?? "Kullanıcı",
-                        preview,
-                        messagesUrl));
+                    if (toUser?.Email is not null)
+                    {
+                        var preview = content.Length > 120 ? content[..120] + "…" : content;
+                        var messagesUrl = $"{GetAppBaseUrl()}/client/messages";
+
+                        await emailService.SendNewMessageNotificationAsync(new MessageNotificationData(
+                            toUser.Email,
+                            toUser.FullName,
+                            fromUser?.FullName ?? "Kullanıcı",
+                            preview,
+                            messagesUrl));
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Message email notification failed");
-            }
-        }, CancellationToken.None);
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Message email notification failed");
+                }
+            }, CancellationToken.None);
+        }
     }
 
     private static string GetAppBaseUrl() => "https://sevdailematematik.com";

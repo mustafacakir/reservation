@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, MessageCircle, ChevronLeft, Loader2 } from 'lucide-react'
+import { MessageCircle, ChevronLeft, Loader2 } from 'lucide-react'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useChatStore, type ConversationDto, type MessageDto } from '@/store/chat.store'
 import { useChatConnection } from '@/hooks/useChatConnection'
+import ChatMessageInput from '@/components/chat/ChatMessageInput'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ function ConversationItem({
           <p className="text-sm font-semibold text-gray-900 truncate">{conv.displayName}</p>
           <span className="text-[10px] text-gray-400 flex-shrink-0">{timeLabel}</span>
         </div>
-        <p className="text-xs text-gray-500 truncate mt-0.5">{conv.lastMessage}</p>
+        <p className="text-xs text-gray-500 truncate mt-0.5">{stripHtml(conv.lastMessage)}</p>
       </div>
       {conv.unreadCount > 0 && (
         <span
@@ -83,11 +84,16 @@ function ConversationItem({
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, '').trim()
+}
+
 function MessageBubble({ msg, isOwn }: { msg: MessageDto; isOwn: boolean }) {
   const time = new Date(msg.sentAt).toLocaleTimeString('tr-TR', {
     hour: '2-digit',
     minute: '2-digit',
   })
+  const isHtml = msg.content.startsWith('<')
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}>
       <div
@@ -96,7 +102,10 @@ function MessageBubble({ msg, isOwn }: { msg: MessageDto; isOwn: boolean }) {
         }`}
         style={isOwn ? { background: 'var(--color-primary)' } : {}}
       >
-        <p>{msg.content}</p>
+        {isHtml
+          ? <div className="chat-bubble-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
+          : <p>{msg.content}</p>
+        }
         <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
           {time}
         </p>
@@ -109,7 +118,7 @@ function MessageBubble({ msg, isOwn }: { msg: MessageDto; isOwn: boolean }) {
 
 export default function ClientMessagesPage() {
   const connRef = useChatConnection()
-  const { userId } = useAuthStore()
+  useAuthStore()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
 
@@ -118,7 +127,6 @@ export default function ClientMessagesPage() {
 
   const [activeUserId, setActiveUserId] = useState<string | null>(null)
   const [activeConv, setActiveConv] = useState<ConversationDto | null>(null)
-  const [text, setText] = useState('')
   const [showThread, setShowThread] = useState(false)
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -129,27 +137,33 @@ export default function ClientMessagesPage() {
   const paramName = searchParams.get('name') ?? ''
 
   // Load conversations
-  const { isLoading: loadingConvs } = useQuery({
+  const { isLoading: loadingConvs, data: convsData } = useQuery({
     queryKey: ['conversations'],
     queryFn: () =>
       apiClient.get<ConversationDto[]>('/messages/conversations').then((r) => r.data),
-    onSuccess: (data: ConversationDto[]) => setConversations(data),
-  } as any)
+  })
+
+  useEffect(() => {
+    if (convsData) setConversations(convsData)
+  }, [convsData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load thread when active user changes
-  const { isFetching: loadingThread } = useQuery({
+  const { isFetching: loadingThread, data: threadData } = useQuery({
     queryKey: ['thread', activeUserId],
     queryFn: () =>
       apiClient
         .get<MessageDto[]>(`/messages/conversations/${activeUserId}`)
         .then((r) => r.data),
     enabled: !!activeUserId,
-    onSuccess: (data: MessageDto[]) => {
-      setActiveMessages(data, activeUserId!)
-      markRead(activeUserId!)
+  })
+
+  useEffect(() => {
+    if (threadData !== undefined && activeUserId) {
+      setActiveMessages(threadData, activeUserId)
+      markRead(activeUserId)
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    },
-  } as any)
+    }
+  }, [threadData, activeUserId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle ?userId= param from provider profile "Mesaj Gönder"
   useEffect(() => {
@@ -182,24 +196,15 @@ export default function ClientMessagesPage() {
     setShowThread(true)
   }
 
-  const handleSend = async () => {
-    const content = text.trim()
-    if (!content || !activeUserId || !activeConv) return
+  const handleSend = async (html: string) => {
+    if (!activeUserId || !activeConv) return
     setSending(true)
-    setText('')
-
     const conn = connRef.current
     if (conn && conn.state === 'Connected') {
       try {
-        await conn.invoke(
-          'SendMessage',
-          activeUserId,
-          activeConv.conversationProviderIdForRoute,
-          content
-        )
+        await conn.invoke('SendMessage', activeUserId, activeConv.conversationProviderIdForRoute, html)
       } catch (err) {
         console.error('Send failed', err)
-        setText(content) // restore on failure
       }
     }
     setSending(false)
@@ -282,7 +287,7 @@ export default function ClientMessagesPage() {
                   </p>
                 ) : (
                   activeMessages.map((msg) => (
-                    <MessageBubble key={msg.id} msg={msg} isOwn={msg.fromUserId === userId} />
+                    <MessageBubble key={msg.id} msg={msg} isOwn={msg.fromUserId !== activeUserId} />
                   ))
                 )}
                 <div ref={bottomRef} />
@@ -290,34 +295,7 @@ export default function ClientMessagesPage() {
 
               {/* Input */}
               <div className="flex-shrink-0 px-4 py-3 border-t border-gray-100">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSend()
-                      }
-                    }}
-                    placeholder="Mesajınızı yazın..."
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-                    style={{ '--tw-ring-color': 'var(--color-primary)' } as any}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!text.trim() || sending}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-opacity disabled:opacity-40 hover:opacity-90 flex-shrink-0"
-                    style={{ background: 'var(--color-primary)' }}
-                  >
-                    {sending ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                  </button>
-                </div>
+                <ChatMessageInput onSend={handleSend} disabled={sending} />
               </div>
             </>
           ) : (

@@ -72,6 +72,10 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var headerSlug))
             return headerSlug.ToString();
 
+        // 3. From query param (WebSocket/SSE can't send custom headers)
+        if (context.Request.Query.TryGetValue("tenant", out var querySlug))
+            return querySlug.ToString();
+
         return null;
     }
 

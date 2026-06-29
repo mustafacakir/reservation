@@ -15,6 +15,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL
   : ''
 
 let globalConnection: HubConnection | null = null
+let isConnecting = false
 
 export function useChatConnection() {
   const { accessToken, isAuthenticated } = useAuthStore()
@@ -25,19 +26,20 @@ export function useChatConnection() {
   useEffect(() => {
     if (!isAuthenticated || !accessToken) return
 
-    // Reuse existing global connection if already connected
-    if (
-      globalConnection &&
-      globalConnection.state === HubConnectionState.Connected
-    ) {
+    // Reuse if already connected
+    if (globalConnection?.state === HubConnectionState.Connected) {
       connectionRef.current = globalConnection
       return
     }
 
+    // Prevent duplicate connection attempts (StrictMode double-invoke, layout + page both calling hook)
+    if (isConnecting) return
+
+    isConnecting = true
+
     const connection = new HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/hubs/chat`, {
+      .withUrl(`${BASE_URL}/hubs/chat${slug ? `?tenant=${encodeURIComponent(slug)}` : ''}`, {
         accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
-        headers: slug ? { 'X-Tenant-Slug': slug } : {},
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(
@@ -46,14 +48,13 @@ export function useChatConnection() {
       .build()
 
     connection.on('ReceiveMessage', (msg: MessageDto) => {
-      addMessage(msg)
+      useChatStore.getState().addMessage(msg)
     })
 
     connection.onreconnected(() => {
-      // Refresh unread count after reconnect
       apiClient
         .get<{ count: number }>('/messages/unread-count')
-        .then((r) => setUnreadTotal(r.data.count))
+        .then((r) => useChatStore.getState().setUnreadTotal(r.data.count))
         .catch(() => {})
     })
 
@@ -62,17 +63,17 @@ export function useChatConnection() {
       .then(() => {
         globalConnection = connection
         connectionRef.current = connection
-        // Fetch initial unread count
+        isConnecting = false
         return apiClient.get<{ count: number }>('/messages/unread-count')
       })
-      .then((r) => setUnreadTotal(r.data.count))
+      .then((r) => useChatStore.getState().setUnreadTotal(r.data.count))
       .catch((err) => {
+        isConnecting = false
         if (import.meta.env.DEV) console.warn('ChatHub connection failed', err)
       })
 
     return () => {
       // Do NOT stop the global connection on unmount — keep it alive for the session.
-      // The connection is only referenced via globalConnection for reuse.
     }
   }, [isAuthenticated, accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -85,4 +86,5 @@ export async function disconnectChat() {
     await globalConnection.stop()
     globalConnection = null
   }
+  isConnecting = false
 }

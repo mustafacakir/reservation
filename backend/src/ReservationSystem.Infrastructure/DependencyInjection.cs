@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.Payments;
@@ -19,7 +20,7 @@ namespace ReservationSystem.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services, IConfiguration configuration)
+        this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         // Tenant service (scoped — one per request)
         services.AddScoped<TenantService>();
@@ -58,7 +59,8 @@ public static class DependencyInjection
         // Email
         services.Configure<EmailSettings>(configuration.GetSection("Email"));
         services.AddScoped<IEmailService, BrevoEmailService>();
-        services.AddHostedService<BookingReminderBackgroundService>();
+        if (environment.IsProduction())
+            services.AddHostedService<BookingReminderBackgroundService>();
 
         // SMS
         services.Configure<NetGsmOptions>(configuration.GetSection("NetGsm"));

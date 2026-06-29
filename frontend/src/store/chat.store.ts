@@ -62,41 +62,42 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
     // Update conversation list
     set((s) => {
-      const otherUserId = msg.fromUserId === state.activeUserId
-        ? msg.toUserId
+      // For the active conversation, the partner is always state.activeUserId.
+      // For background incoming messages, the partner is the sender (msg.fromUserId).
+      const otherUserId = (isSelf && state.activeUserId !== null)
+        ? state.activeUserId
         : msg.fromUserId
 
       const existingIdx = s.conversations.findIndex(
         (c) => c.conversationUserId === otherUserId
       )
 
-      const updated: ConversationDto = existingIdx >= 0
-        ? {
-            ...s.conversations[existingIdx],
-            lastMessage: msg.content,
-            lastMessageAt: msg.sentAt,
-            unreadCount: isSelf
-              ? 0
-              : s.conversations[existingIdx].unreadCount + 1,
-          }
-        : {
-            conversationUserId: msg.fromUserId,
-            conversationProviderIdForRoute: msg.toProviderId,
-            displayName: msg.fromUserName,
-            avatarUrl: null,
-            lastMessage: msg.content,
-            lastMessageAt: msg.sentAt,
-            unreadCount: 1,
-          }
+      if (existingIdx >= 0) {
+        const updated: ConversationDto = {
+          ...s.conversations[existingIdx],
+          lastMessage: msg.content,
+          lastMessageAt: msg.sentAt,
+          unreadCount: isSelf ? 0 : s.conversations[existingIdx].unreadCount + 1,
+        }
+        const convs = [updated, ...s.conversations.filter((_, i) => i !== existingIdx)]
+        const total = convs.reduce((acc, c) => acc + c.unreadCount, 0)
+        return { conversations: convs, unreadTotal: total }
+      }
 
-      const convs =
-        existingIdx >= 0
-          ? [
-              updated,
-              ...s.conversations.filter((_, i) => i !== existingIdx),
-            ]
-          : [updated, ...s.conversations]
+      // Only create a new entry for incoming messages (not our own echoed messages).
+      // For sent messages without an existing entry, the conversations query will populate it.
+      if (isSelf) return {}
 
+      const newEntry: ConversationDto = {
+        conversationUserId: otherUserId,
+        conversationProviderIdForRoute: msg.toProviderId,
+        displayName: msg.fromUserName,
+        avatarUrl: null,
+        lastMessage: msg.content,
+        lastMessageAt: msg.sentAt,
+        unreadCount: 1,
+      }
+      const convs = [newEntry, ...s.conversations]
       const total = convs.reduce((acc, c) => acc + c.unreadCount, 0)
       return { conversations: convs, unreadTotal: total }
     })
