@@ -491,7 +491,6 @@ export default function LandingPage() {
                 <h4 className="text-white font-semibold text-sm mb-3">İletişim</h4>
                 <ul className="space-y-2 text-sm">
                   <li><Link to="/iletisim" className="hover:text-white transition-colors">İletişim Sayfası</Link></li>
-                  <li><a href="tel:+905415740545" className="hover:text-white transition-colors">0541 574 05 45</a></li>
                 </ul>
               </div>
             </div>

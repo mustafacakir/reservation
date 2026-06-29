@@ -46,6 +46,11 @@ export function useAppConfig() {
           city: tenant.settings.city,
           offersInPerson: tenant.settings.offersInPerson,
           offersOnline: tenant.settings.offersOnline,
+          contactEmail: tenant.settings.contactEmail,
+          contactPhone: tenant.settings.contactPhone,
+          address: tenant.settings.address,
+          websiteUrl: tenant.settings.websiteUrl,
+          taxNumber: tenant.settings.taxNumber,
         })
 
         localStorage.setItem('tenant-name', tenant.name)

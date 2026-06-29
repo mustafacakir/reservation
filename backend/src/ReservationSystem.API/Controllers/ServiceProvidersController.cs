@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ReservationSystem.Application.Availability.Queries.GetAvailableSlots;
 using ReservationSystem.Application.Common.Exceptions;
+using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Application.ServiceProviders.Commands.UpdateMyProfile;
 using ReservationSystem.Application.ServiceProviders.Queries.GetMyProfile;
 using ReservationSystem.Application.ServiceProviders.Queries.GetProviderById;
@@ -12,7 +14,7 @@ namespace ReservationSystem.API.Controllers;
 
 [ApiController]
 [Route("api/v1/providers")]
-public class ServiceProvidersController(IMediator mediator) : ControllerBase
+public class ServiceProvidersController(IMediator mediator, IApplicationDbContext db) : ControllerBase
 {
     [HttpGet("me")]
     [Authorize]
@@ -57,6 +59,28 @@ public class ServiceProvidersController(IMediator mediator) : ControllerBase
         {
             return NotFound();
         }
+    }
+
+    [HttpGet("{providerId:guid}/whatsapp")]
+    [Authorize]
+    public async Task<IActionResult> WhatsApp(Guid providerId, CancellationToken ct)
+    {
+        var phone = await db.ServiceProviders
+            .AsNoTracking()
+            .Where(p => p.Id == providerId)
+            .Select(p => p.User.PhoneNumber)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(phone))
+            return NotFound("Bu öğretmenin WhatsApp numarası tanımlı değil.");
+
+        // TR format: 05XX... → 905XX...
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        if (digits.StartsWith("0")) digits = digits[1..];
+        var waNumber = "90" + digits;
+
+        var text = Uri.EscapeDataString("Merhaba, rezervasyonumla ilgili görüşmek istiyorum.");
+        return Redirect($"https://wa.me/{waNumber}?text={text}");
     }
 
     [HttpGet("{providerId:guid}/available-slots")]

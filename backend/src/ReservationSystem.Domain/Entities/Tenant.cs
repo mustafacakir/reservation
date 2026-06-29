@@ -72,4 +72,10 @@ public class TenantSettings
 
     /// <summary>Whether the provider offers online sessions.</summary>
     public bool OffersOnline { get; set; } = true;
+
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Address { get; set; }
+    public string? WebsiteUrl { get; set; }
+    public string? TaxNumber { get; set; }
 }

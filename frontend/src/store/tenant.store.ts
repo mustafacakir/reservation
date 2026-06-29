@@ -10,6 +10,11 @@ interface TenantSettings {
   city?: string
   offersInPerson?: boolean
   offersOnline?: boolean
+  contactEmail?: string
+  contactPhone?: string
+  address?: string
+  websiteUrl?: string
+  taxNumber?: string
 }
 
 interface TenantState {

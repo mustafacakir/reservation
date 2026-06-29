@@ -23,7 +23,12 @@ public record TenantSettingsDto(
     string? CustomTagline,
     string? City,
     bool OffersInPerson,
-    bool OffersOnline);
+    bool OffersOnline,
+    string? ContactEmail,
+    string? ContactPhone,
+    string? Address,
+    string? WebsiteUrl,
+    string? TaxNumber);
 
 public class GetTenantBySlugQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetTenantBySlugQuery, TenantDto>
@@ -50,6 +55,11 @@ public class GetTenantBySlugQueryHandler(IApplicationDbContext db)
                 tenant.Settings.CustomTagline,
                 tenant.Settings.City,
                 tenant.Settings.OffersInPerson,
-                tenant.Settings.OffersOnline));
+                tenant.Settings.OffersOnline,
+                tenant.Settings.ContactEmail,
+                tenant.Settings.ContactPhone,
+                tenant.Settings.Address,
+                tenant.Settings.WebsiteUrl,
+                tenant.Settings.TaxNumber));
     }
 }

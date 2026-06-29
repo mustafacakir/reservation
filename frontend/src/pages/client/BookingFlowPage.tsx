@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle } from 'lucide-react'
+import { ChevronLeft, CalendarDays, Clock, Users, CreditCard, ShieldCheck, CheckCircle, User } from 'lucide-react'
 import { providersApi } from '@/api/endpoints/providers.api'
 import { apiClient } from '@/api/client'
 import { useToast } from '@/components/ui/Toast'
@@ -53,7 +53,6 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
     if (!q.isLoading) avail[toParam(d)] = (q.data?.length ?? 0) > 0
   })
 
-  // Build Monday-first calendar grid covering the 14-day range
   const toMonFirst = (day: number) => (day + 6) % 7
   const gridStart = new Date(days[0])
   gridStart.setDate(gridStart.getDate() - toMonFirst(days[0].getDay()))
@@ -74,10 +73,8 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
 
   return (
     <div>
-      {/* Month label */}
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{monthLabel}</p>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1 mb-4">
         {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((h) => (
           <div key={h} className="text-center text-[10px] font-semibold text-gray-400 pb-1">{h}</div>
@@ -116,7 +113,6 @@ function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart,
         })}
       </div>
 
-      {/* Slots */}
       <div className="border-t border-gray-100 pt-4">
         {loading ? (
           <div className="grid grid-cols-3 gap-2">
@@ -217,7 +213,7 @@ interface CardData {
   cardCvv: string
 }
 
-// ── KuveytTürk 3D Secure redirect (auto-submits generated form) ──────────────
+// ── KuveytTürk 3D Secure redirect ────────────────────────────────────────────
 
 function KuveytTurkCheckout({ formContent }: { formContent: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -246,25 +242,13 @@ function KuveytTurkCheckout({ formContent }: { formContent: string }) {
   )
 }
 
-// ── KuveytTürk kart bilgisi formu ─────────────────────────────────────────────
+// ── KuveytTürk kart formu ─────────────────────────────────────────────────────
 
-function KuveytTurkCardForm({
-  price,
-  onSubmit,
-  onBack,
-  isLoading,
-}: {
-  price: number
-  onSubmit: (card: CardData) => void
-  onBack: () => void
-  isLoading: boolean
+function KuveytTurkCardForm({ price, onSubmit, onBack, isLoading }: {
+  price: number; onSubmit: (card: CardData) => void; onBack: () => void; isLoading: boolean
 }) {
   const [card, setCard] = useState<CardData>({
-    cardNumber: '',
-    cardHolderName: '',
-    cardExpireMonth: '',
-    cardExpireYear: '',
-    cardCvv: '',
+    cardNumber: '', cardHolderName: '', cardExpireMonth: '', cardExpireYear: '', cardCvv: '',
   })
 
   const set = (field: keyof CardData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -275,10 +259,7 @@ function KuveytTurkCardForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({
-      ...card,
-      cardNumber: card.cardNumber.replace(/\s/g, ''),
-    })
+    onSubmit({ ...card, cardNumber: card.cardNumber.replace(/\s/g, '') })
   }
 
   const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent'
@@ -301,31 +282,16 @@ function KuveytTurkCardForm({
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Numarası</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="0000 0000 0000 0000"
+          <input type="text" inputMode="numeric" placeholder="0000 0000 0000 0000"
             value={card.cardNumber}
             onChange={(e) => setCard((prev) => ({ ...prev, cardNumber: formatCardNumber(e.target.value) }))}
-            required
-            className={inputCls}
-            style={ringStyle}
-          />
+            required className={inputCls} style={ringStyle} />
         </div>
-
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kart Üzerindeki İsim</label>
-          <input
-            type="text"
-            placeholder="AD SOYAD"
-            value={card.cardHolderName}
-            onChange={set('cardHolderName')}
-            required
-            className={`${inputCls} uppercase`}
-            style={ringStyle}
-          />
+          <input type="text" placeholder="AD SOYAD" value={card.cardHolderName}
+            onChange={set('cardHolderName')} required className={`${inputCls} uppercase`} style={ringStyle} />
         </div>
-
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ay</label>
@@ -349,31 +315,19 @@ function KuveytTurkCardForm({
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">CVV</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="•••"
-              maxLength={4}
+            <input type="text" inputMode="numeric" placeholder="•••" maxLength={4}
               value={card.cardCvv}
               onChange={(e) => setCard((prev) => ({ ...prev, cardCvv: e.target.value.replace(/\D/g, '') }))}
-              required
-              className={inputCls}
-              style={ringStyle}
-            />
+              required className={inputCls} style={ringStyle} />
           </div>
         </div>
-
         <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
           <ShieldCheck size={14} style={{ color: 'var(--color-primary)' }} className="flex-shrink-0" />
           <p className="text-xs text-gray-500">KuveytTürk 3D Secure ile güvenli ödeme</p>
         </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
+        <button type="submit" disabled={isLoading}
           className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
-          style={{ background: 'var(--color-primary)' }}
-        >
+          style={{ background: 'var(--color-primary)' }}>
           {isLoading ? 'İşleniyor…' : `Ödemeyi Tamamla → ₺${Number(price).toLocaleString('tr-TR')}`}
         </button>
       </form>
@@ -381,7 +335,7 @@ function KuveytTurkCardForm({
   )
 }
 
-// ── iyzico form view (legacy) ─────────────────────────────────────────────────
+// ── iyzico (legacy) ───────────────────────────────────────────────────────────
 
 function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -408,9 +362,7 @@ function IyzicoCheckout({ formContent, onBack }: { formContent: string; onBack: 
       <h2 className="text-xl font-bold text-gray-900">Ödeme Sayfasına Yönlendiriliyorsunuz</h2>
       <p className="text-sm text-gray-500">iyzico güvenli ödeme formu yükleniyor…</p>
       <div ref={containerRef} id="iyzipay-checkout-form" className="responsive" />
-      <button onClick={onBack} className="text-sm text-gray-400 hover:text-gray-600 underline">
-        Geri dön
-      </button>
+      <button onClick={onBack} className="text-sm text-gray-400 hover:text-gray-600 underline">Geri dön</button>
     </div>
   )
 }
@@ -432,6 +384,8 @@ export default function BookingFlowPage() {
   const toast = useToast()
   const [clientNotes, setClientNotes] = useState('')
   const [paymentState, setPaymentState] = useState<PaymentState>({ type: 'none' })
+  const [showSummary, setShowSummary] = useState(false)
+  const [bookingDone, setBookingDone] = useState(false)
 
   const pre = (location.state as { slotStart?: string; slotLabel?: string }) ?? {}
   const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(pre.slotStart ?? null)
@@ -444,22 +398,16 @@ export default function BookingFlowPage() {
   })
 
   const service = provider?.services.find((s) => s.id === serviceId)
+  const price = Number(service?.price ?? 0)
+  const isFree = price === 0
 
   const initPaymentMutation = useMutation({
     mutationFn: (card: CardData) =>
-      apiClient
-        .post('/payments/initialize', {
-          serviceId,
-          providerId,
-          startUtc: selectedSlotStart,
-          clientNotes: clientNotes || null,
-          cardNumber: card.cardNumber,
-          cardHolderName: card.cardHolderName,
-          cardExpireMonth: card.cardExpireMonth,
-          cardExpireYear: card.cardExpireYear,
-          cardCvv: card.cardCvv,
-        })
-        .then((r) => r.data as { gatewayType: string; iframeToken?: string; formContent?: string }),
+      apiClient.post('/payments/initialize', {
+        serviceId, providerId, startUtc: selectedSlotStart, clientNotes: clientNotes || null,
+        cardNumber: card.cardNumber, cardHolderName: card.cardHolderName,
+        cardExpireMonth: card.cardExpireMonth, cardExpireYear: card.cardExpireYear, cardCvv: card.cardCvv,
+      }).then((r) => r.data as { gatewayType: string; iframeToken?: string; formContent?: string }),
     onSuccess: (data) => {
       if (data.gatewayType === 'PayTr' && data.iframeToken) {
         setPaymentState({ type: 'paytr', iframeToken: data.iframeToken })
@@ -473,8 +421,7 @@ export default function BookingFlowPage() {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       const isSlotTaken = msg?.toLowerCase().includes('not available') || msg?.toLowerCase().includes('slot')
       if (isSlotTaken) {
-        setSelectedSlotStart(null)
-        setSelectedSlotLabel(null)
+        setSelectedSlotStart(null); setSelectedSlotLabel(null)
         qc.invalidateQueries({ queryKey: ['slots', providerId] })
         toast.error('Saat müsait değil', 'Bu saat dolu, lütfen başka bir saat seçin.')
       } else {
@@ -483,25 +430,36 @@ export default function BookingFlowPage() {
     },
   })
 
+  const freeBookingMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post('/bookings', {
+        serviceId, providerId, startUtc: selectedSlotStart, clientNotes: clientNotes || null,
+      }).then((r) => r.data),
+    onSuccess: () => { setBookingDone(true) },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error('Rezervasyon oluşturulamadı', msg ?? 'Lütfen tekrar deneyin.')
+    },
+  })
+
+  // ── Payment screens ──────────────────────────────────────────────────────────
+
   if (paymentState.type === 'paytr') {
     return <PayTrCheckout iframeToken={paymentState.iframeToken} onBack={() => setPaymentState({ type: 'none' })} />
   }
-
   if (paymentState.type === 'kuveytturk-card-form') {
     return (
       <KuveytTurkCardForm
-        price={service?.price ?? 0}
+        price={price}
         isLoading={initPaymentMutation.isPending}
         onBack={() => setPaymentState({ type: 'none' })}
         onSubmit={(card) => initPaymentMutation.mutate(card)}
       />
     )
   }
-
   if (paymentState.type === 'kuveytturk') {
     return <KuveytTurkCheckout formContent={paymentState.formContent} />
   }
-
   if (paymentState.type === 'iyzico') {
     return <IyzicoCheckout formContent={paymentState.formContent} onBack={() => setPaymentState({ type: 'none' })} />
   }
@@ -518,6 +476,175 @@ export default function BookingFlowPage() {
 
   const step1Done = !!selectedSlotStart
   const initials = provider.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+
+  // ── Summary screen ───────────────────────────────────────────────────────────
+
+  if (showSummary && step1Done && service) {
+    if (bookingDone) {
+      return (
+        <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center text-center space-y-6">
+          {/* Success icon */}
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #3730a3) 100%)' }}>
+              <CheckCircle size={44} className="text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ring-4 ring-white">
+              <span className="text-white text-sm font-bold">✓</span>
+            </div>
+          </div>
+
+          {/* Text */}
+          <div className="space-y-2">
+            <h2 className="text-2xl font-extrabold text-gray-900">Rezervasyonunuz Oluşturuldu!</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              Onay detayları e-posta adresinize gönderildi.
+            </p>
+          </div>
+
+          {/* Booking summary pill */}
+          {service && selectedSlotStart && (
+            <div className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-left space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                  <CalendarDays size={16} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Tarih & Saat</p>
+                  <p className="text-sm font-bold text-gray-900">{fmtDate(selectedSlotStart)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                  <Clock size={16} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Ders</p>
+                  <p className="text-sm font-bold text-gray-900">{service.name}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="w-full space-y-3 pt-2">
+            <button
+              onClick={() => navigate(`/providers/${providerId}`)}
+              className="w-full py-4 rounded-2xl text-base font-bold text-white shadow-md transition-opacity hover:opacity-90"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              Başka Ders Seç
+            </button>
+            <button
+              onClick={() => navigate('/client/bookings')}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              Rezervasyonlarım
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="max-w-lg mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowSummary(false)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500 flex-shrink-0">
+            <ChevronLeft size={20} />
+          </button>
+          <h2 className="text-lg font-bold text-gray-900">Rezervasyon Özeti</h2>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Provider + service — colored header */}
+          <div className="flex items-center gap-4 p-5" style={{ background: 'var(--color-primary-light)' }}>
+            {provider.avatarUrl
+              ? <img src={provider.avatarUrl} alt={provider.fullName} className="w-14 h-14 rounded-xl object-cover flex-shrink-0 ring-2 ring-white" />
+              : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>{initials}</div>
+            }
+            <div className="min-w-0">
+              <p className="text-base font-bold text-gray-900 truncate">{provider.fullName}</p>
+              <p className="text-sm font-semibold mt-0.5 truncate" style={{ color: 'var(--color-primary)' }}>{service.name}</p>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="divide-y divide-gray-50">
+            <div className="flex items-center gap-4 px-5 py-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <CalendarDays size={18} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tarih & Saat</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">{fmtDate(selectedSlotStart!)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-5 py-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+                <Clock size={18} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Süre</p>
+                <p className="text-base font-bold text-gray-900 mt-0.5">{service.durationMinutes} dakika</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4">
+              <span className="text-base font-semibold text-gray-700">Toplam Ücret</span>
+              <span className="text-2xl font-extrabold" style={{ color: isFree ? '#16a34a' : '#111827' }}>
+                {isFree ? 'Ücretsiz' : `₺${price.toLocaleString('tr-TR')}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        {clientNotes && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Notunuz</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{clientNotes}</p>
+          </div>
+        )}
+
+        {/* CTA */}
+        {isFree ? (
+          <button
+            onClick={() => freeBookingMutation.mutate()}
+            disabled={freeBookingMutation.isPending}
+            className="w-full py-4 rounded-2xl text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {freeBookingMutation.isPending ? 'İşleniyor…' : 'Rezervasyonu Tamamla →'}
+          </button>
+        ) : (
+          <button
+            onClick={() => { setShowSummary(false); setPaymentState({ type: 'kuveytturk-card-form' }) }}
+            className="w-full py-4 rounded-2xl text-base font-bold text-white transition-opacity hover:opacity-90 shadow-md"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            {`Ödemeye Geç → ₺${price.toLocaleString('tr-TR')}`}
+          </button>
+        )}
+
+        {!isFree && (
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
+              <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — KuveytTürk 3D Secure</p>
+              <p className="text-xs text-gray-400">Kart bilgileriniz 3D Secure ve SSL ile güvence altındadır.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Main booking form ────────────────────────────────────────────────────────
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -545,7 +672,9 @@ export default function BookingFlowPage() {
         <span className={`text-xs font-medium ${step1Done ? 'text-gray-400' : 'text-gray-700'}`}>Saat Seç</span>
         <div className="flex-1 h-px bg-gray-200" />
         <StepDot n={2} done={false} active={step1Done} />
-        <span className={`text-xs font-medium ${step1Done ? 'text-gray-700' : 'text-gray-300'}`}>Not & Ödeme</span>
+        <span className={`text-xs font-medium ${step1Done ? 'text-gray-700' : 'text-gray-300'}`}>
+          {isFree ? 'Onayla' : 'Özet & Ödeme'}
+        </span>
       </div>
 
       {/* Service card */}
@@ -558,7 +687,9 @@ export default function BookingFlowPage() {
             </p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="font-extrabold text-xl text-gray-900">₺{Number(service.price).toLocaleString('tr-TR')}</p>
+            <p className="font-extrabold text-xl" style={{ color: isFree ? '#16a34a' : '#111827' }}>
+              {isFree ? 'Ücretsiz' : `₺${price.toLocaleString('tr-TR')}`}
+            </p>
           </div>
         </div>
       )}
@@ -590,10 +721,10 @@ export default function BookingFlowPage() {
         </div>
       </div>
 
-      {/* Notes + payment — only when slot selected */}
+      {/* Notes + CTA — only when slot selected */}
       {step1Done && (
         <>
-          {/* Selected slot confirmation */}
+          {/* Selected slot */}
           <div className="flex items-center gap-3 p-4 rounded-2xl border"
             style={{ background: 'var(--color-primary-light)', borderColor: 'var(--color-primary)' }}>
             <CheckCircle size={18} style={{ color: 'var(--color-primary)' }} className="flex-shrink-0" />
@@ -618,24 +749,13 @@ export default function BookingFlowPage() {
             />
           </div>
 
-          {/* Payment trust badge */}
-          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-light)' }}>
-              <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-700">Güvenli Ödeme — KuveytTürk 3D Secure</p>
-              <p className="text-xs text-gray-400">Kart bilgileriniz 3D Secure ve SSL ile güvence altındadır.</p>
-            </div>
-          </div>
-
           {/* CTA */}
           <button
-            onClick={() => setPaymentState({ type: 'kuveytturk-card-form' })}
+            onClick={() => setShowSummary(true)}
             className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-opacity hover:opacity-90 shadow-md"
             style={{ background: 'var(--color-primary)' }}
           >
-            {`Ödemeye Geç → ₺${Number(service?.price ?? 0).toLocaleString('tr-TR')}`}
+            Devam Et →
           </button>
         </>
       )}

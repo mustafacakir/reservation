@@ -21,7 +21,17 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(git commit *)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "WebFetch(domain:developer.kuveytturk.com.tr)",
+      "PowerShell(docker exec reservation-postgres *)",
+      "PowerShell(docker port reservation-api *)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:5005/api/v1/pay/gecersiz-token\" -Method GET -ErrorAction SilentlyContinue | Select-Object StatusCode, Content)",
+      "PowerShell(docker port reservation-postgres *)",
+      "Bash(docker exec *)",
+      "Bash(docker build *)",
+      "PowerShell(docker exec reservation-api *)",
+      "PowerShell(docker compose *)",
+      "PowerShell(git *)"
     ]
   }
 }
