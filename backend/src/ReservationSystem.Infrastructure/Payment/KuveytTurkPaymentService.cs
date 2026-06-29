@@ -24,7 +24,7 @@ public class KuveytTurkPaymentService(
     private const string ProdEndpointProvision =
         "https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate";
 
-    public Task<GatewayInitResult> InitializeAsync(GatewayInitRequest req, CancellationToken ct)
+    public async Task<GatewayInitResult> InitializeAsync(GatewayInitRequest req, CancellationToken ct)
     {
         var o = opts.Value;
         var amountStr = ((int)Math.Round(req.Price * 100)).ToString();
@@ -32,62 +32,81 @@ public class KuveytTurkPaymentService(
         var passwordHash = ComputePasswordHash(o.Password);
         var hashData = ComputeInitHashData(o.MerchantId, req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl, o.UserName, passwordHash);
 
-        logger.LogInformation(
-            "KT Init → Endpoint={Endpoint} MerchantId={MerchantId} UserName={UserName} " +
-            "OrderId={OrderId} Amount={Amount} OkUrl={OkUrl} FailUrl={FailUrl} " +
-            "CardNumber={CardNumber} CardHolder={CardHolder} ExpireMonth={ExpireMonth} ExpireYear={ExpireYear} HashData={HashData}",
-            endpoint, o.MerchantId, o.UserName,
-            req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl,
-            string.IsNullOrEmpty(req.CardNumber) ? "BOŞ" : req.CardNumber[..4] + "****",
-            req.CardHolderName, req.CardExpireMonth, req.CardExpireYear, hashData);
-
         var clientIp = string.IsNullOrWhiteSpace(req.UserIp) ? "1.1.1.1" : req.UserIp;
         var phone = string.IsNullOrWhiteSpace(req.PhoneNumber)
             ? "5000000000"
             : new string(req.PhoneNumber.Where(char.IsDigit).ToArray()).TrimStart('9', '0').PadLeft(10, '5')[..10];
 
-        var html = $"""
-            <!DOCTYPE html>
-            <html lang="tr">
-            <head><meta charset="UTF-8"><title>Ödeme yönlendiriliyor…</title></head>
-            <body>
-              <form id="ktForm" method="POST" action="{endpoint}">
-                <input type="hidden" name="APIVersion"            value="TDV2.0.0" />
-                <input type="hidden" name="MerchantId"            value="{o.MerchantId}" />
-                <input type="hidden" name="CustomerId"            value="{o.CustomerNumber}" />
-                <input type="hidden" name="UserName"              value="{o.UserName}" />
-                <input type="hidden" name="HashData"              value="{hashData}" />
-                <input type="hidden" name="OkUrl"                 value="{o.OkUrl}" />
-                <input type="hidden" name="FailUrl"               value="{o.FailUrl}" />
-                <input type="hidden" name="TransactionType"       value="Sale" />
-                <input type="hidden" name="TransactionSecurity"   value="3" />
-                <input type="hidden" name="InstallmentCount"      value="0" />
-                <input type="hidden" name="Amount"                value="{amountStr}" />
-                <input type="hidden" name="DisplayAmount"         value="{amountStr}" />
-                <input type="hidden" name="CurrencyCode"          value="0949" />
-                <input type="hidden" name="MerchantOrderId"       value="{req.MerchantOrderId}" />
-                <input type="hidden" name="CardNumber"            value="{req.CardNumber}" />
-                <input type="hidden" name="CardHolderName"        value="{req.CardHolderName}" />
-                <input type="hidden" name="CardExpireDateMonth"   value="{req.CardExpireMonth}" />
-                <input type="hidden" name="CardExpireDateYear"    value="{req.CardExpireYear}" />
-                <input type="hidden" name="CardCVV2"              value="{req.CardCvv}" />
-                <input type="hidden" name="DeviceData.DeviceChannel" value="02" />
-                <input type="hidden" name="DeviceData.ClientIP"      value="{clientIp}" />
-                <input type="hidden" name="CardHolderData.BillAddrCity"     value="İstanbul" />
-                <input type="hidden" name="CardHolderData.BillAddrCountry"  value="792" />
-                <input type="hidden" name="CardHolderData.BillAddrLine1"    value="Türkiye" />
-                <input type="hidden" name="CardHolderData.BillAddrPostCode" value="34000" />
-                <input type="hidden" name="CardHolderData.BillAddrState"    value="34" />
-                <input type="hidden" name="CardHolderData.Email"            value="{req.Email}" />
-                <input type="hidden" name="CardHolderData.MobilePhone.Cc"         value="90" />
-                <input type="hidden" name="CardHolderData.MobilePhone.Subscriber" value="{phone}" />
-              </form>
-              <script>document.getElementById('ktForm').submit();</script>
-            </body>
-            </html>
+        var xml = $"""
+            <KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+              <APIVersion>TDV2.0.0</APIVersion>
+              <OkUrl>{o.OkUrl}</OkUrl>
+              <FailUrl>{o.FailUrl}</FailUrl>
+              <HashData>{hashData}</HashData>
+              <MerchantId>{o.MerchantId}</MerchantId>
+              <CustomerId>{o.CustomerNumber}</CustomerId>
+              <DeviceData>
+                <DeviceChannel>02</DeviceChannel>
+                <ClientIP>{clientIp}</ClientIP>
+              </DeviceData>
+              <CardHolderData>
+                <BillAddrCity>İstanbul</BillAddrCity>
+                <BillAddrCountry>792</BillAddrCountry>
+                <BillAddrLine1>Türkiye</BillAddrLine1>
+                <BillAddrPostCode>34000</BillAddrPostCode>
+                <BillAddrState>34</BillAddrState>
+                <Email>{req.Email}</Email>
+                <MobilePhone>
+                  <Cc>90</Cc>
+                  <Subscriber>{phone}</Subscriber>
+                </MobilePhone>
+              </CardHolderData>
+              <UserName>{o.UserName}</UserName>
+              <CardNumber>{req.CardNumber}</CardNumber>
+              <CardExpireDateYear>{req.CardExpireYear}</CardExpireDateYear>
+              <CardExpireDateMonth>{req.CardExpireMonth}</CardExpireDateMonth>
+              <CardCVV2>{req.CardCvv}</CardCVV2>
+              <CardHolderName>{req.CardHolderName}</CardHolderName>
+              <TransactionType>Sale</TransactionType>
+              <InstallmentCount>0</InstallmentCount>
+              <Amount>{amountStr}</Amount>
+              <DisplayAmount>{amountStr}</DisplayAmount>
+              <CurrencyCode>0949</CurrencyCode>
+              <MerchantOrderId>{req.MerchantOrderId}</MerchantOrderId>
+              <TransactionSecurity>3</TransactionSecurity>
+            </KuveytTurkVPosMessage>
             """;
 
-        return Task.FromResult(new GatewayInitResult("KuveytTurk", req.MerchantOrderId, html, null));
+        logger.LogInformation(
+            "KT Init → Endpoint={Endpoint} MerchantId={MerchantId} CustomerId={CustomerId} UserName={UserName} " +
+            "OrderId={OrderId} Amount={Amount} OkUrl={OkUrl} FailUrl={FailUrl} " +
+            "CardNumber={CardNumber} CardHolder={CardHolder} HashData={HashData}",
+            endpoint, o.MerchantId, o.CustomerNumber, o.UserName,
+            req.MerchantOrderId, amountStr, o.OkUrl, o.FailUrl,
+            string.IsNullOrEmpty(req.CardNumber) ? "BOŞ" : req.CardNumber[..4] + "****",
+            req.CardHolderName, hashData);
+
+        var client = httpClientFactory.CreateClient("KuveytTurk");
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        string htmlContent;
+        try
+        {
+            using var response = await client.PostAsync(
+                endpoint,
+                new StringContent(xml, Encoding.UTF8, "text/xml"), cts.Token);
+            htmlContent = await response.Content.ReadAsStringAsync(cts.Token);
+            logger.LogInformation("KT Init response: StatusCode={StatusCode} Length={Length}",
+                (int)response.StatusCode, htmlContent.Length);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("KT Init HTTP failed: {Error}", ex.Message);
+            throw new InvalidOperationException("Ödeme başlatılamadı: " + ex.Message, ex);
+        }
+
+        return new GatewayInitResult("KuveytTurk", req.MerchantOrderId, htmlContent, null);
     }
 
     public async Task<(bool Success, string? MerchantOrderId, string? Error)> HandleCallbackAsync(
