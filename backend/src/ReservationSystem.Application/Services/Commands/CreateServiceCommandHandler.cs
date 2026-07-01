@@ -21,7 +21,8 @@ public record CreateServiceCommand(
     string? ZoomLink = null,
     string? ZoomMeetingId = null,
     string? ZoomPassword = null,
-    int SortOrder = 0
+    int SortOrder = 0,
+    Guid? SeriesId = null
 ) : IRequest<ServiceDto>;
 
 public class CreateServiceCommandHandler(
@@ -49,10 +50,10 @@ public class CreateServiceCommandHandler(
             string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency,
             sessionType,
             sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null,
-            sessionType == Domain.Enums.SessionType.Group ? request.RecurrenceWeeks : null,
+            request.RecurrenceWeeks,
             request.ScheduledStart,
             request.ScheduledEnd,
-            request.ZoomLink, request.ZoomMeetingId, request.ZoomPassword);
+            request.ZoomLink, request.ZoomMeetingId, request.ZoomPassword, request.SeriesId);
 
         service.SetSortOrder(request.SortOrder);
         await db.Services.AddAsync(service, cancellationToken);
@@ -62,6 +63,6 @@ public class CreateServiceCommandHandler(
             service.DurationMinutes, service.Price, service.Currency, service.IsActive,
             service.SessionType.ToString(), service.MaxParticipants, 0, service.SortOrder,
             service.RecurrenceWeeks, service.ScheduledStart, service.ScheduledEnd,
-            service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword);
+            service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword, service.SeriesId);
     }
 }

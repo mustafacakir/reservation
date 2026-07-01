@@ -34,4 +34,5 @@ export interface ServiceItem {
   zoomLink: string | null
   zoomMeetingId: string | null
   zoomPassword: string | null
+  seriesId: string | null
 }

@@ -35,7 +35,8 @@ public record ServiceDto(
     int? MaxParticipants,
     int? RecurrenceWeeks = null,
     DateTimeOffset? ScheduledStart = null,
-    DateTimeOffset? ScheduledEnd = null);
+    DateTimeOffset? ScheduledEnd = null,
+    Guid? SeriesId = null);
 
 public class GetProviderByIdQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetProviderByIdQuery, ProviderDetailDto>
@@ -68,7 +69,7 @@ public class GetProviderByIdQueryHandler(IApplicationDbContext db)
                 .Select(s => new ServiceDto(
                     s.Id, s.Name, s.Description,
                     s.DurationMinutes, s.Price, s.Currency,
-                    s.SessionType.ToString(), s.MaxParticipants, s.RecurrenceWeeks, s.ScheduledStart, s.ScheduledEnd))
+                    s.SessionType.ToString(), s.MaxParticipants, s.RecurrenceWeeks, s.ScheduledStart, s.ScheduledEnd, s.SeriesId))
                 .ToList(),
             provider.InstagramUrl,
             provider.LinkedInUrl,

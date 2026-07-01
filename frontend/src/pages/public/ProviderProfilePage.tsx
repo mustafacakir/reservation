@@ -967,6 +967,27 @@ export default function ProviderProfilePage() {
   )
 }
 
+const WEEKDAY_FULL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+const toMonFirstOrder = (getDayValue: number) => (getDayValue + 6) % 7
+
+function groupServicesBySeries(services: any[]): any[][] {
+  const order: string[] = []
+  const map = new Map<string, any[]>()
+  for (const s of services) {
+    const key = s.seriesId ?? s.id
+    if (!map.has(key)) { map.set(key, []); order.push(key) }
+    map.get(key)!.push(s)
+  }
+  return order.map((key) => {
+    const members = map.get(key)!
+    return members.slice().sort((a, b) => {
+      const da = a.scheduledStart ? toMonFirstOrder(new Date(a.scheduledStart).getDay()) : 0
+      const db = b.scheduledStart ? toMonFirstOrder(new Date(b.scheduledStart).getDay()) : 0
+      return da - db
+    })
+  })
+}
+
 // ── Booking panel (shared between mobile + desktop) ───────────────────────────
 
 function BookingPanel({
@@ -1041,11 +1062,58 @@ function BookingPanel({
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-3">Ders Seç</p>
         <div className="space-y-2">
-          {provider.services.map((service: any) => {
-            const active = selectedServiceId === service.id
+          {groupServicesBySeries(provider.services).map((group) => {
+            const service = group[0]
+            const isMultiDay = group.length > 1
+            const active = group.some((m) => m.id === selectedServiceId)
+            const daysLabel = isMultiDay
+              ? group.filter((m) => m.scheduledStart).map((m) => WEEKDAY_FULL[new Date(m.scheduledStart).getDay()]).join(', ')
+              : null
+
+            const cardBody = (
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-semibold" style={active ? { color: 'var(--color-primary)' } : { color: '#111827' }}>
+                      {service.name}
+                    </p>
+                    {service.sessionType === 'Group' && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
+                        style={active
+                          ? { background: 'var(--color-primary)', color: '#fff' }
+                          : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                        }
+                      >
+                        <Users size={9} />
+                        GRUP
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1 flex-wrap">
+                    <Clock size={11} /> {service.durationMinutes} dk
+                    {service.sessionType === 'Group' && service.maxParticipants && (
+                      <> · Maks. {service.maxParticipants} kişi</>
+                    )}
+                    {service.scheduledStart && (
+                      <> · {new Date(service.scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}{service.scheduledEnd ? `–${new Date(service.scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}</>
+                    )}
+                    {isMultiDay && daysLabel && <> · {daysLabel}</>}
+                    {service.recurrenceWeeks && <> · {service.recurrenceWeeks} hafta</>}
+                  </p>
+                  {service.description && (
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed prose prose-xs max-w-none [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_em]:italic" dangerouslySetInnerHTML={{ __html: service.description }} />
+                  )}
+                </div>
+                <span className="text-sm font-bold flex-shrink-0" style={{ color: Number(service.price) === 0 ? '#16a34a' : '#111827' }}>
+                  {Number(service.price) === 0 ? 'Ücretsiz' : `₺${Number(service.price).toLocaleString('tr-TR')}`}
+                </span>
+              </div>
+            )
+
             return (
               <button
-                key={service.id}
+                key={service.seriesId ?? service.id}
                 onClick={() => {
                   setSelectedServiceId(service.id)
                   setSelectedSlotStart(null)
@@ -1056,42 +1124,7 @@ function BookingPanel({
                 }`}
                 style={active ? { borderColor: 'var(--color-primary)', background: 'var(--color-primary-light, #ede9fe)' } : {}}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-semibold" style={active ? { color: 'var(--color-primary)' } : { color: '#111827' }}>
-                        {service.name}
-                      </p>
-                      {service.sessionType === 'Group' && (
-                        <span
-                          className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
-                          style={active
-                            ? { background: 'var(--color-primary)', color: '#fff' }
-                            : { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
-                          }
-                        >
-                          <Users size={9} />
-                          GRUP
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                      <Clock size={11} /> {service.durationMinutes} dk
-                      {service.sessionType === 'Group' && service.maxParticipants && (
-                        <> · Maks. {service.maxParticipants} kişi</>
-                      )}
-                      {service.scheduledStart && (
-                        <> · {new Date(service.scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}{service.scheduledEnd ? `–${new Date(service.scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}{service.recurrenceWeeks ? ` · ${service.recurrenceWeeks} hafta` : ''}</>
-                      )}
-                    </p>
-                    {service.description && (
-                      <div className="text-xs text-gray-500 mt-1 leading-relaxed prose prose-xs max-w-none [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:font-semibold [&_em]:italic" dangerouslySetInnerHTML={{ __html: service.description }} />
-                    )}
-                  </div>
-                  <span className="text-sm font-bold flex-shrink-0" style={{ color: Number(service.price) === 0 ? '#16a34a' : '#111827' }}>
-                    {Number(service.price) === 0 ? 'Ücretsiz' : `₺${Number(service.price).toLocaleString('tr-TR')}`}
-                  </span>
-                </div>
+                {cardBody}
               </button>
             )
           })}
@@ -1106,20 +1139,28 @@ function BookingPanel({
               <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Ders Takvimi</p>
               {(() => {
                 const { timePart, info } = formatGroupSchedule(selectedService)
-                const start = new Date(selectedService.scheduledStart)
-                const weeks = selectedService.recurrenceWeeks ?? 1
                 const now = new Date()
-                const dates = Array.from({ length: weeks }, (_, i) => {
-                  const d = new Date(start.getTime() + i * 7 * 24 * 60 * 60 * 1000)
-                  return {
-                    label: d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-                    isPast: d < now,
-                  }
-                })
+                const groupKey = selectedService.seriesId ?? selectedService.id
+                const seriesMembers = provider.services.filter((s: any) => (s.seriesId ?? s.id) === groupKey)
+                const dates = seriesMembers
+                  .filter((m: any) => m.scheduledStart)
+                  .flatMap((m: any) => {
+                    const start = new Date(m.scheduledStart)
+                    const weeks = m.recurrenceWeeks ?? 1
+                    return Array.from({ length: weeks }, (_, i) => {
+                      const d = new Date(start.getTime() + i * 7 * 24 * 60 * 60 * 1000)
+                      return {
+                        label: d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+                        isPast: d < now,
+                        sortKey: d.getTime(),
+                      }
+                    })
+                  })
+                  .sort((a: any, b: any) => a.sortKey - b.sortKey)
                 return (
                   <>
                     <div className="space-y-1">
-                      {dates.map(({ label, isPast }, i) => (
+                      {dates.map(({ label, isPast }: { label: string; isPast: boolean }, i: number) => (
                         <div key={i} className={`flex items-center gap-2 ${isPast ? 'opacity-40' : ''}`}>
                           <span className="text-[10px] font-bold text-amber-600 w-4 flex-shrink-0 text-right">{i + 1}.</span>
                           <span className={`text-sm ${isPast ? 'line-through text-gray-500' : 'text-gray-800'}`}>{label}</span>

@@ -30,6 +30,7 @@ interface ServiceForm {
   zoomMeetingId: string | null
   zoomPassword: string | null
   sortOrder: number
+  seriesId: string | null
 }
 
 function utcToDatetimeLocal(utcStr: string): string {
@@ -42,6 +43,66 @@ function utcToTimeLocal(utcStr: string): string {
   return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+const WEEKDAY_OPTIONS = [
+  { label: 'Pzt', value: 1 },
+  { label: 'Sal', value: 2 },
+  { label: 'Çar', value: 3 },
+  { label: 'Per', value: 4 },
+  { label: 'Cum', value: 5 },
+  { label: 'Cmt', value: 6 },
+  { label: 'Paz', value: 0 },
+]
+
+function weekdayLabel(day: number): string {
+  return WEEKDAY_OPTIONS.find((w) => w.value === day)?.label ?? ''
+}
+
+function groupServices(list: ServiceItem[]): ServiceItem[][] {
+  const order: string[] = []
+  const map = new Map<string, ServiceItem[]>()
+  for (const s of list) {
+    const key = (s as any).seriesId ?? s.id
+    if (!map.has(key)) { map.set(key, []); order.push(key) }
+    map.get(key)!.push(s)
+  }
+  return order.map((key) => map.get(key)!.slice().sort((a, b) => {
+    const da = a.scheduledStart ? (new Date(a.scheduledStart).getDay() + 6) % 7 : 0
+    const db = b.scheduledStart ? (new Date(b.scheduledStart).getDay() + 6) % 7 : 0
+    return da - db
+  }))
+}
+
+function withWeekday(scheduledStart: string, targetDay: number): string {
+  const [datePart, timePart] = scheduledStart.split('T')
+  const d = new Date(`${datePart}T00:00:00`)
+  const diff = targetDay - d.getDay()
+  d.setDate(d.getDate() + diff)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T${timePart}`
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+function expandFormOccurrences(f: ServiceForm): { startMs: number; endMs: number }[] {
+  if (!f.scheduledStart || !f.scheduledEndTime) return []
+  const datePart = f.scheduledStart.split('T')[0]
+  const start = new Date(f.scheduledStart).getTime()
+  const end = new Date(`${datePart}T${f.scheduledEndTime}`).getTime()
+  if (end <= start) return []
+  const weeks = f.recurrenceWeeks ?? 1
+  return Array.from({ length: weeks }, (_, w) => ({ startMs: start + w * WEEK_MS, endMs: end + w * WEEK_MS }))
+}
+
+function expandServiceOccurrences(s: ServiceItem): { startMs: number; endMs: number }[] {
+  if (!s.scheduledStart || !s.scheduledEnd) return []
+  const start = new Date(s.scheduledStart).getTime()
+  const end = new Date(s.scheduledEnd).getTime()
+  const weeks = s.recurrenceWeeks ?? 1
+  return Array.from({ length: weeks }, (_, w) => ({ startMs: start + w * WEEK_MS, endMs: end + w * WEEK_MS }))
+}
+
 function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: string) {
   const [sh, sm] = startStr.split('T')[1]?.split(':').map(Number) ?? [0, 0]
   const [eh, em] = endTimeStr.split(':').map(Number)
@@ -52,16 +113,103 @@ function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: s
   return { blockMinutes, sessionCount, breakMinutes: BREAK }
 }
 
-const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null, sortOrder: 0 }
+const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null, sortOrder: 0, seriesId: null }
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent bg-white transition-colors'
 
-function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
-  initial: ServiceForm; title: string; onSave: (f: ServiceForm) => void; onCancel: () => void; isPending: boolean
+interface GroupMember { id: string; scheduledStart: string }
+interface EditGroupPayload {
+  updates: { id: string; form: ServiceForm }[]
+  toCreate: ServiceForm[]
+  toDeleteIds: string[]
+}
+
+function ServiceFormPanel({ initial, title, onSave, onSaveMultiple, allowMultiDay, selfId, existingGroupMembers, onSaveEditGroup, existingServices, onCancel, isPending }: {
+  initial: ServiceForm; title: string; onSave: (f: ServiceForm) => void
+  onSaveMultiple?: (forms: ServiceForm[]) => void; allowMultiDay?: boolean
+  selfId?: string; existingGroupMembers?: GroupMember[]; onSaveEditGroup?: (payload: EditGroupPayload) => void
+  existingServices?: ServiceItem[]
+  onCancel: () => void; isPending: boolean
 }) {
   const [form, setForm] = useState<ServiceForm>(initial)
-  const set = (patch: Partial<ServiceForm>) => setForm((f) => ({ ...f, ...patch }))
+  const [extraDays, setExtraDays] = useState<number[]>(() => (existingGroupMembers ?? []).map((m) => new Date(m.scheduledStart).getDay()))
+  const [conflictNames, setConflictNames] = useState<string[] | null>(null)
+  const set = (patch: Partial<ServiceForm>) => { setConflictNames(null); setForm((f) => ({ ...f, ...patch })) }
+  const toggleExtraDay = (day: number) => { setConflictNames(null); setExtraDays((d) => d.includes(day) ? d.filter((x) => x !== day) : [...d, day]) }
   const isGroup = form.sessionType === 'Group'
   const canSave = form.name.trim() && form.price >= 0 && (!isGroup || ((form.maxParticipants ?? 0) > 0 && !!form.scheduledStart && !!form.scheduledEndTime))
+
+  const computeDayForms = (): ServiceForm[] => {
+    if (!form.scheduledStart) return [form]
+    const anchorDay = new Date(`${form.scheduledStart.split('T')[0]}T00:00:00`).getDay()
+    const days = [anchorDay, ...extraDays.filter((d) => d !== anchorDay)]
+    if (days.length <= 1) return [form]
+    return days.map((d) => d === anchorDay ? form : { ...form, scheduledStart: withWeekday(form.scheduledStart!, d) })
+  }
+
+  const findConflicts = (): string[] => {
+    const candidateRanges = computeDayForms().flatMap(expandFormOccurrences)
+    if (candidateRanges.length === 0) return []
+    const excludeIds = new Set([...(selfId ? [selfId] : []), ...(existingGroupMembers ?? []).map((m) => m.id)])
+    const names = new Set<string>()
+    for (const s of existingServices ?? []) {
+      if (excludeIds.has(s.id)) continue
+      const ranges = expandServiceOccurrences(s)
+      if (ranges.some((r) => candidateRanges.some((c) => c.startMs < r.endMs && c.endMs > r.startMs))) {
+        names.add(s.name)
+      }
+    }
+    return Array.from(names)
+  }
+
+  const handleSaveClick = () => {
+    if (!conflictNames) {
+      const conflicts = findConflicts()
+      if (conflicts.length > 0) {
+        setConflictNames(conflicts)
+        return
+      }
+    }
+    executeSave()
+  }
+
+  const executeSave = () => {
+    if (onSaveEditGroup && selfId && form.scheduledStart) {
+      const anchorDay = new Date(`${form.scheduledStart.split('T')[0]}T00:00:00`).getDay()
+      const selectedDays = [anchorDay, ...extraDays.filter((d) => d !== anchorDay)]
+      const seriesId = form.seriesId ?? crypto.randomUUID()
+      const baseForm = { ...form, seriesId }
+
+      const othersByDay = new Map<number, GroupMember>()
+      for (const m of existingGroupMembers ?? []) othersByDay.set(new Date(m.scheduledStart).getDay(), m)
+
+      const updates: { id: string; form: ServiceForm }[] = [{ id: selfId, form: baseForm }]
+      const toCreate: ServiceForm[] = []
+      for (const day of selectedDays) {
+        if (day === anchorDay) continue
+        const dayForm = { ...baseForm, scheduledStart: withWeekday(form.scheduledStart, day) }
+        const existing = othersByDay.get(day)
+        if (existing) updates.push({ id: existing.id, form: dayForm })
+        else toCreate.push(dayForm)
+      }
+      const selectedSet = new Set(selectedDays)
+      const toDeleteIds = (existingGroupMembers ?? [])
+        .filter((m) => !selectedSet.has(new Date(m.scheduledStart).getDay()))
+        .map((m) => m.id)
+
+      onSaveEditGroup({ updates, toCreate, toDeleteIds })
+    } else if (allowMultiDay && onSaveMultiple && extraDays.length > 0 && form.scheduledStart) {
+      const anchorDay = new Date(`${form.scheduledStart.split('T')[0]}T00:00:00`).getDay()
+      const days = [anchorDay, ...extraDays.filter((d) => d !== anchorDay)]
+      const seriesId = crypto.randomUUID()
+      const forms = days.map((d) => ({
+        ...(d === anchorDay ? form : { ...form, scheduledStart: withWeekday(form.scheduledStart!, d) }),
+        seriesId,
+      }))
+      onSaveMultiple(forms)
+    } else {
+      onSave(form)
+    }
+  }
 
   const [showEmoji, setShowEmoji] = useState(false)
   const emojiRef = useRef<HTMLDivElement>(null)
@@ -219,6 +367,33 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
             <input type="time" value={form.scheduledEndTime ?? ''} onChange={(e) => set({ scheduledEndTime: e.target.value || null })} className={inputCls} />
           </div>
         </div>
+
+        {(allowMultiDay || onSaveEditGroup) && form.scheduledStart && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ek Günler (aynı saatte)</label>
+            <div className="grid grid-cols-7 gap-1.5">
+              {WEEKDAY_OPTIONS.map(({ label, value }) => {
+                const anchorDay = new Date(`${form.scheduledStart!.split('T')[0]}T00:00:00`).getDay()
+                const isAnchor = value === anchorDay
+                const active = isAnchor || extraDays.includes(value)
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={isAnchor}
+                    onClick={() => toggleExtraDay(value)}
+                    className={`py-2 rounded-lg text-xs font-medium border-2 transition-all ${active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'} ${isAnchor ? 'opacity-70 cursor-default' : ''}`}
+                    style={active ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Başlangıç tarihinin günü otomatik seçilidir. Aynı saatte tekrar edeceği diğer günleri işaretleyin — her gün için ayrı bir ders kaydı oluşturulur.</p>
+          </div>
+        )}
+
         {isGroup && (() => {
           if (!form.scheduledStart || !form.scheduledEndTime) return null
           const info = groupBlockInfo(form.durationMinutes, form.scheduledStart, form.scheduledEndTime)
@@ -252,7 +427,7 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
             <>
               <input type="number" min={2} max={52} value={form.recurrenceWeeks}
                 onChange={(e) => set({ recurrenceWeeks: parseInt(e.target.value) || 4 })} className={inputCls} />
-              <p className="text-xs text-gray-400 mt-1">Her hafta aynı saatte {form.recurrenceWeeks} hafta tekrarlanır.</p>
+              <p className="text-xs text-gray-400 mt-1">Aynı gün ve saatte {form.recurrenceWeeks} hafta boyunca tekrarlanır.</p>
             </>
           )}
         </div>
@@ -294,14 +469,22 @@ function ServiceFormPanel({ initial, title, onSave, onCancel, isPending }: {
         </div>
       </div>
 
+      {conflictNames && conflictNames.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+            <strong>Saat çakışması:</strong> "{conflictNames.join('", "')}" dersiyle çakışıyor. Yine de kaydetmek için tekrar "Yine de Kaydet"e basın.
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 px-5 pb-5">
         <button
-          onClick={() => onSave(form)}
+          onClick={handleSaveClick}
           disabled={isPending || !canSave}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-          style={{ background: 'var(--color-primary)' }}
+          style={{ background: conflictNames ? '#d97706' : 'var(--color-primary)' }}
         >
-          {isPending ? 'Kaydediliyor…' : 'Kaydet'}
+          {isPending ? 'Kaydediliyor…' : conflictNames ? 'Yine de Kaydet' : 'Kaydet'}
         </button>
         <button onClick={onCancel} className="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
           İptal
@@ -340,12 +523,25 @@ export default function MyServicesPage() {
     mutationFn: (f: ServiceForm) => apiClient.post('/services', toPayload(f)).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setShowCreate(false) },
   })
+  const createManyMutation = useMutation({
+    mutationFn: (forms: ServiceForm[]) => Promise.all(forms.map((f) => apiClient.post('/services', toPayload(f)))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setShowCreate(false) },
+  })
   const updateMutation = useMutation({
     mutationFn: ({ id, ...f }: ServiceForm & { id: string }) => apiClient.put(`/services/${id}`, toPayload(f)).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setEditingId(null) },
   })
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/services/${id}`),
+  const updateGroupMutation = useMutation({
+    mutationFn: ({ updates, toCreate, toDeleteIds }: { updates: { id: string; form: ServiceForm }[]; toCreate: ServiceForm[]; toDeleteIds: string[] }) =>
+      Promise.all([
+        ...updates.map(({ id, form }) => apiClient.put(`/services/${id}`, toPayload(form))),
+        ...toCreate.map((form) => apiClient.post('/services', toPayload(form))),
+        ...toDeleteIds.map((id) => apiClient.delete(`/services/${id}`)),
+      ]),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setEditingId(null) },
+  })
+  const deleteGroupMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => apiClient.delete(`/services/${id}`))),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['myServices'] }); setDeletingId(null) },
   })
 
@@ -368,19 +564,40 @@ export default function MyServicesPage() {
       </div>
 
       {showCreate && (
-        <ServiceFormPanel title="Yeni Ders Ekle" initial={emptyForm} onSave={(f) => createMutation.mutate(f)} onCancel={() => setShowCreate(false)} isPending={createMutation.isPending} />
+        <ServiceFormPanel
+          title="Yeni Ders Ekle"
+          initial={emptyForm}
+          allowMultiDay
+          existingServices={services}
+          onSave={(f) => createMutation.mutate(f)}
+          onSaveMultiple={(forms) => createManyMutation.mutate(forms)}
+          onCancel={() => setShowCreate(false)}
+          isPending={createMutation.isPending || createManyMutation.isPending}
+        />
       )}
 
       <div className="space-y-3">
-        {services.map((s) =>
-          editingId === s.id ? (
+        {groupServices(services).map((group) => {
+          const s = group[0]
+          const isMultiDay = group.length > 1
+          const daysLabel = isMultiDay
+            ? group.filter((m) => m.scheduledStart).map((m) => weekdayLabel(new Date(m.scheduledStart!).getDay())).join(', ')
+            : null
+          const totalBookings = group.reduce((sum, m) => sum + ((m as any).totalBookings ?? 0), 0)
+
+          return editingId === s.id ? (
             <ServiceFormPanel
               key={s.id}
               title="Dersi Düzenle"
-              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: s.sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: s.maxParticipants ?? null, recurrenceWeeks: s.recurrenceWeeks ?? null, scheduledStart: s.scheduledStart ? utcToDatetimeLocal(s.scheduledStart) : null, scheduledEndTime: s.scheduledEnd ? utcToTimeLocal(s.scheduledEnd) : null, zoomLink: s.zoomLink ?? null, zoomMeetingId: s.zoomMeetingId ?? null, zoomPassword: s.zoomPassword ?? null, sortOrder: (s as any).sortOrder ?? 0 }}
+              initial={{ name: s.name, description: s.description, durationMinutes: s.durationMinutes, price: Number(s.price), currency: 'TRY', sessionType: s.sessionType === 'Group' ? 'Group' : 'Individual', maxParticipants: s.maxParticipants ?? null, recurrenceWeeks: s.recurrenceWeeks ?? null, scheduledStart: s.scheduledStart ? utcToDatetimeLocal(s.scheduledStart) : null, scheduledEndTime: s.scheduledEnd ? utcToTimeLocal(s.scheduledEnd) : null, zoomLink: s.zoomLink ?? null, zoomMeetingId: s.zoomMeetingId ?? null, zoomPassword: s.zoomPassword ?? null, sortOrder: (s as any).sortOrder ?? 0, seriesId: (s as any).seriesId ?? null }}
+              allowMultiDay
+              selfId={s.id}
+              existingGroupMembers={group.filter((m) => m.id !== s.id && m.scheduledStart).map((m) => ({ id: m.id, scheduledStart: m.scheduledStart! }))}
+              existingServices={services}
               onSave={(f) => updateMutation.mutate({ id: s.id, ...f })}
+              onSaveEditGroup={(payload) => updateGroupMutation.mutate(payload)}
               onCancel={() => setEditingId(null)}
-              isPending={updateMutation.isPending}
+              isPending={updateMutation.isPending || updateGroupMutation.isPending}
             />
           ) : (
             <div key={s.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -388,11 +605,15 @@ export default function MyServicesPage() {
                 <div className="p-4 flex items-center gap-4 bg-red-50 border-red-100">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-900">{s.name}</p>
-                    <p className="text-xs text-red-600 mt-0.5">Bu dersi silmek istediğinize emin misiniz?</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      {isMultiDay
+                        ? `Bu ders ${group.length} güne ait kayıtlarıyla (${daysLabel}) birlikte silinecek. Emin misiniz?`
+                        : 'Bu dersi silmek istediğinize emin misiniz?'}
+                    </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => deleteMutation.mutate(s.id)} disabled={deleteMutation.isPending} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-60 transition-colors">
-                      {deleteMutation.isPending ? '…' : 'Sil'}
+                    <button onClick={() => deleteGroupMutation.mutate(group.map((m) => m.id))} disabled={deleteGroupMutation.isPending} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-60 transition-colors">
+                      {deleteGroupMutation.isPending ? '…' : 'Sil'}
                     </button>
                     <button onClick={() => setDeletingId(null)} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
                       Vazgeç
@@ -424,14 +645,15 @@ export default function MyServicesPage() {
                           </span>
                           {(s as any).sessionType === 'Group' && (s as any).maxParticipants && (
                             <span className="flex items-center gap-1 text-xs text-gray-400">
-                              <Users size={10} /> {(s as any).totalBookings ?? 0}/{(s as any).maxParticipants} kişi
+                              <Users size={10} /> {totalBookings}/{(s as any).maxParticipants} kişi
                             </span>
                           )}
                           {(s as any).scheduledStart && (
                             <span className="flex items-center gap-1 text-xs text-gray-400">
-                              {new Date((s as any).scheduledStart).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                              {' '}{new Date((s as any).scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                              {!isMultiDay && <>{new Date((s as any).scheduledStart).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}{' '}</>}
+                              {new Date((s as any).scheduledStart).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                               {(s as any).scheduledEnd && `–${new Date((s as any).scheduledEnd).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`}
+                              {isMultiDay && daysLabel && ` · ${daysLabel}`}
                               {(s as any).recurrenceWeeks && ` · ${(s as any).recurrenceWeeks} hafta`}
                             </span>
                           )}
@@ -462,7 +684,7 @@ export default function MyServicesPage() {
               )}
             </div>
           )
-        )}
+        })}
 
         {services.length === 0 && !showCreate && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">

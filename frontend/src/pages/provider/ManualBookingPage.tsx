@@ -31,6 +31,21 @@ const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Te
 const MONTHS   = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 
+function groupServices(list: ServiceItem[]): ServiceItem[][] {
+  const order: string[] = []
+  const map = new Map<string, ServiceItem[]>()
+  for (const s of list) {
+    const key = (s as any).seriesId ?? s.id
+    if (!map.has(key)) { map.set(key, []); order.push(key) }
+    map.get(key)!.push(s)
+  }
+  return order.map((key) => map.get(key)!.slice().sort((a, b) => {
+    const da = a.scheduledStart ? (new Date(a.scheduledStart).getDay() + 6) % 7 : 0
+    const db = b.scheduledStart ? (new Date(b.scheduledStart).getDay() + 6) % 7 : 0
+    return da - db
+  }))
+}
+
 function fmtUtc(utc: string) {
   const d = new Date(utc)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -434,12 +449,17 @@ export default function ManualBookingPage() {
                   Henüz ders eklenmemiş. Önce Derslerim sayfasından ders ekleyin.
                 </p>
               ) : (
-                services.map((s) => {
+                groupServices(services).map((group) => {
+                  const s = group[0]
+                  const isMultiDay = group.length > 1
+                  const daysLabel = isMultiDay
+                    ? group.filter((m) => m.scheduledStart).map((m) => WEEKDAYS[new Date(m.scheduledStart!).getDay()]).join(', ')
+                    : null
                   const active = serviceId === s.id
                   const Icon = s.sessionType === 'Group' ? Users : User
                   return (
                     <button
-                      key={s.id}
+                      key={s.seriesId ?? s.id}
                       onClick={() => {
                         setServiceId(s.id)
                         setSelectedStart(null)
@@ -464,7 +484,9 @@ export default function ManualBookingPage() {
                         <p className="text-xs text-gray-400 mt-0.5">
                           {s.durationMinutes} dk
                           {s.sessionType === 'Group' && s.maxParticipants && ` · Maks. ${s.maxParticipants} kişi`}
-                          {s.scheduledStart && ` · ${fmtUtc(s.scheduledStart)}`}
+                          {s.scheduledStart && !isMultiDay && ` · ${fmtUtc(s.scheduledStart)}`}
+                          {isMultiDay && daysLabel && ` · ${daysLabel}`}
+                          {s.recurrenceWeeks && ` · ${s.recurrenceWeeks} hafta`}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 text-sm font-bold text-gray-900 flex-shrink-0">

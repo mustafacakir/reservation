@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ReservationSystem.Application.Bookings.Common;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
@@ -61,22 +62,16 @@ public class CreateBookingFromPaymentCommandHandler(
             .FirstOrDefaultAsync(u => u.Id == d.UserId, cancellationToken)
             ?? throw new NotFoundException("User", d.UserId);
 
-        int weeks = service.RecurrenceWeeks ?? 1;
-        var recurrenceGroupId = weeks > 1 ? Guid.NewGuid() : (Guid?)null;
+        var members = await ServiceSeriesExpander.ResolveMembersAsync(db, service, cancellationToken);
+        var occurrences = ServiceSeriesExpander.Expand(members, d.StartUtc, service.Id);
+        var recurrenceGroupId = occurrences.Count > 1 ? Guid.NewGuid() : (Guid?)null;
 
         var bookings = new List<Booking>();
-        var blockMinutes = (service.ScheduledStart.HasValue && service.ScheduledEnd.HasValue)
-            ? (int)(service.ScheduledEnd.Value - service.ScheduledStart.Value).TotalMinutes
-            : service.DurationMinutes;
-
-        for (int w = 0; w < weeks; w++)
+        foreach (var occurrence in occurrences)
         {
-            var startUtc = d.StartUtc.AddDays(7 * w);
-            var endUtc = startUtc.AddMinutes(blockMinutes);
-
             var b = Booking.Create(
-                d.TenantId, d.ServiceId, d.ProviderId, d.UserId,
-                startUtc, endUtc, service.Price, service.Currency, d.ClientNotes,
+                d.TenantId, occurrence.Member.Id, occurrence.Member.ProviderId, d.UserId,
+                occurrence.StartUtc, occurrence.EndUtc, service.Price, service.Currency, d.ClientNotes,
                 recurrenceGroupId);
             b.Confirm();
             bookings.Add(b);

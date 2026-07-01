@@ -50,7 +50,7 @@ public class UpdateServiceCommandHandler(
             request.Price, string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency,
             60, sessionType,
             sessionType == Domain.Enums.SessionType.Group ? request.MaxParticipants : null,
-            sessionType == Domain.Enums.SessionType.Group ? request.RecurrenceWeeks : null,
+            request.RecurrenceWeeks,
             request.ScheduledStart,
             request.ScheduledEnd,
             request.ZoomLink, request.ZoomMeetingId, request.ZoomPassword);
@@ -67,6 +67,6 @@ public class UpdateServiceCommandHandler(
             service.DurationMinutes, service.Price, service.Currency, service.IsActive,
             service.SessionType.ToString(), service.MaxParticipants, totalBookings, service.SortOrder,
             service.RecurrenceWeeks, service.ScheduledStart, service.ScheduledEnd,
-            service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword);
+            service.ZoomLink, service.ZoomMeetingId, service.ZoomPassword, service.SeriesId);
     }
 }

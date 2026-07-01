@@ -25,7 +25,8 @@ public record ServiceDto(
     DateTimeOffset? ScheduledEnd = null,
     string? ZoomLink = null,
     string? ZoomMeetingId = null,
-    string? ZoomPassword = null
+    string? ZoomPassword = null,
+    Guid? SeriesId = null
 );
 
 public class GetMyServicesQueryHandler(
@@ -64,7 +65,8 @@ public class GetMyServicesQueryHandler(
                 s.ScheduledEnd,
                 s.ZoomLink,
                 s.ZoomMeetingId,
-                s.ZoomPassword
+                s.ZoomPassword,
+                s.SeriesId
             ))
             .ToListAsync(cancellationToken);
     }

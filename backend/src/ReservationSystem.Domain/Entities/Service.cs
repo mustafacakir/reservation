@@ -35,6 +35,9 @@ public class Service : BaseEntity, ITenantEntity
 
     public int SortOrder { get; private set; } = 0;
 
+    /// <summary>Shared by sibling Services created together from a multi-day lesson form (one per weekday). Null for standalone services.</summary>
+    public Guid? SeriesId { get; private set; }
+
     // Navigation
     public ServiceProvider Provider { get; private set; } = default!;
     public Tenant Tenant { get; private set; } = default!;
@@ -47,7 +50,7 @@ public class Service : BaseEntity, ITenantEntity
         SessionType sessionType = SessionType.Individual, int? maxParticipants = null,
         int? recurrenceWeeks = null, DateTimeOffset? scheduledStart = null,
         DateTimeOffset? scheduledEnd = null, string? zoomLink = null,
-        string? zoomMeetingId = null, string? zoomPassword = null)
+        string? zoomMeetingId = null, string? zoomPassword = null, Guid? seriesId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (durationMinutes <= 0) throw new ArgumentOutOfRangeException(nameof(durationMinutes));
@@ -66,12 +69,13 @@ public class Service : BaseEntity, ITenantEntity
             Currency = currency,
             SessionType = sessionType,
             MaxParticipants = sessionType == SessionType.Group ? maxParticipants : null,
-            RecurrenceWeeks = sessionType == SessionType.Group ? recurrenceWeeks : null,
+            RecurrenceWeeks = recurrenceWeeks,
             ScheduledStart = scheduledStart,
             ScheduledEnd = scheduledEnd,
             ZoomLink = string.IsNullOrWhiteSpace(zoomLink) ? null : zoomLink.Trim(),
             ZoomMeetingId = string.IsNullOrWhiteSpace(zoomMeetingId) ? null : zoomMeetingId.Trim(),
             ZoomPassword = string.IsNullOrWhiteSpace(zoomPassword) ? null : zoomPassword.Trim(),
+            SeriesId = seriesId,
         };
     }
 
@@ -93,7 +97,7 @@ public class Service : BaseEntity, ITenantEntity
         MaxAdvanceBookingDays = maxAdvanceBookingDays;
         SessionType = sessionType;
         MaxParticipants = sessionType == SessionType.Group ? maxParticipants : null;
-        RecurrenceWeeks = sessionType == SessionType.Group ? recurrenceWeeks : null;
+        RecurrenceWeeks = recurrenceWeeks;
         ScheduledStart = scheduledStart;
         ScheduledEnd = scheduledEnd;
         ZoomLink = string.IsNullOrWhiteSpace(zoomLink) ? null : zoomLink.Trim();

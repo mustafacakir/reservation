@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ReservationSystem.Application.Bookings.Common;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Enums;
@@ -38,46 +39,35 @@ public class InitializePaymentCommandHandler(
             ? service.ScheduledStart.Value
             : request.StartUtc;
 
-        var blockMinutes = (service.ScheduledStart.HasValue && service.ScheduledEnd.HasValue)
-            ? (int)(service.ScheduledEnd.Value - service.ScheduledStart.Value).TotalMinutes
-            : service.DurationMinutes;
+        var members = await ServiceSeriesExpander.ResolveMembersAsync(db, service, cancellationToken);
+        var occurrences = ServiceSeriesExpander.Expand(members, effectiveStartUtc, service.Id);
 
-        int weeks = service.RecurrenceWeeks ?? 1;
-
-        if (service.SessionType == Domain.Enums.SessionType.Group && service.MaxParticipants.HasValue)
+        foreach (var occurrence in occurrences)
         {
-            // Check capacity for each weekly occurrence
-            for (int w = 0; w < weeks; w++)
+            if (occurrence.Member.SessionType == Domain.Enums.SessionType.Group && occurrence.Member.MaxParticipants.HasValue)
             {
-                var slotStart = effectiveStartUtc.AddDays(7 * w);
                 var participantCount = await db.Bookings
                     .CountAsync(b =>
-                        b.ServiceId == service.Id &&
+                        b.ServiceId == occurrence.Member.Id &&
                         b.Status != BookingStatus.Cancelled &&
                         b.Status != BookingStatus.NoShow &&
-                        b.StartUtc == slotStart,
+                        b.StartUtc == occurrence.StartUtc,
                         cancellationToken);
-                if (participantCount >= service.MaxParticipants.Value)
-                    throw new SlotNotAvailableException(slotStart);
+                if (participantCount >= occurrence.Member.MaxParticipants.Value)
+                    throw new SlotNotAvailableException(occurrence.StartUtc);
             }
-        }
-        else
-        {
-            // Individual: check no overlap for any of the recurring weeks
-            for (int w = 0; w < weeks; w++)
+            else if (occurrence.Member.SessionType != Domain.Enums.SessionType.Group)
             {
-                var slotStart = effectiveStartUtc.AddDays(7 * w);
-                var slotEnd = slotStart.AddMinutes(blockMinutes);
                 var hasConflict = await db.Bookings
                     .AnyAsync(b =>
                         b.ProviderId == request.ProviderId &&
                         b.Status != BookingStatus.Cancelled &&
                         b.Status != BookingStatus.NoShow &&
-                        b.StartUtc < slotEnd &&
-                        b.EndUtc > slotStart,
+                        b.StartUtc < occurrence.EndUtc &&
+                        b.EndUtc > occurrence.StartUtc,
                         cancellationToken);
                 if (hasConflict)
-                    throw new SlotNotAvailableException(slotStart);
+                    throw new SlotNotAvailableException(occurrence.StartUtc);
             }
         }
 

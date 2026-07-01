@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ReservationSystem.Application.Bookings.Common;
 using ReservationSystem.Application.Common.Exceptions;
 using ReservationSystem.Application.Common.Interfaces;
 using ReservationSystem.Domain.Entities;
@@ -44,60 +45,51 @@ public class CreateBookingCommandHandler(
             .FirstOrDefaultAsync(u => u.Id == clientId, cancellationToken)
             ?? throw new NotFoundException("User", clientId);
 
-        // Use service's fixed ScheduledStart if set (group or individual with preset time)
-        var effectiveStart = service.ScheduledStart.HasValue
-            ? service.ScheduledStart.Value
-            : request.StartUtc;
+        var members = await ServiceSeriesExpander.ResolveMembersAsync(db, service, cancellationToken);
+        var occurrences = ServiceSeriesExpander.Expand(members, request.StartUtc, service.Id);
+        var memberIds = members.Select(m => m.Id).ToList();
 
-        var blockMinutes = (service.ScheduledStart.HasValue && service.ScheduledEnd.HasValue)
-            ? (int)(service.ScheduledEnd.Value - service.ScheduledStart.Value).TotalMinutes
-            : service.DurationMinutes;
-
-        int weeks = service.RecurrenceWeeks ?? 1;
-        var recurrenceGroupId = weeks > 1 ? Guid.NewGuid() : (Guid?)null;
-
-        var isDuplicate = await db.Bookings.AnyAsync(b =>
-            b.ClientId == clientId &&
-            b.ServiceId == service.Id &&
-            b.StartUtc == effectiveStart &&
-            b.Status != Domain.Enums.BookingStatus.Cancelled &&
-            b.Status != Domain.Enums.BookingStatus.NoShow, cancellationToken);
-        if (isDuplicate)
+        var existingActive = await db.Bookings
+            .Where(b => b.ClientId == clientId && memberIds.Contains(b.ServiceId) &&
+                b.Status != Domain.Enums.BookingStatus.Cancelled &&
+                b.Status != Domain.Enums.BookingStatus.NoShow)
+            .Select(b => new { b.ServiceId, b.StartUtc })
+            .ToListAsync(cancellationToken);
+        var existingSet = existingActive.Select(x => (x.ServiceId, x.StartUtc)).ToHashSet();
+        if (occurrences.Any(o => existingSet.Contains((o.Member.Id, o.StartUtc))))
             throw new ConflictException("Bu derse zaten kayıtlısınız.");
 
-        if (service.SessionType == Domain.Enums.SessionType.Group && service.MaxParticipants.HasValue)
+        foreach (var occurrence in occurrences)
         {
-            for (int w = 0; w < weeks; w++)
+            if (occurrence.Member.SessionType == Domain.Enums.SessionType.Group && occurrence.Member.MaxParticipants.HasValue)
             {
-                var slotStart = effectiveStart.AddDays(7 * w);
                 var count = await db.Bookings.CountAsync(b =>
-                    b.ServiceId == service.Id &&
-                    b.StartUtc == slotStart &&
+                    b.ServiceId == occurrence.Member.Id &&
+                    b.StartUtc == occurrence.StartUtc &&
                     b.Status != Domain.Enums.BookingStatus.Cancelled &&
                     b.Status != Domain.Enums.BookingStatus.NoShow, cancellationToken);
-                if (count >= service.MaxParticipants.Value)
-                    throw new ConflictException($"Bu grup dersi doldu. Kontenjan: {service.MaxParticipants} kişi.");
+                if (count >= occurrence.Member.MaxParticipants.Value)
+                    throw new ConflictException($"Bu grup dersi doldu. Kontenjan: {occurrence.Member.MaxParticipants} kişi.");
+            }
+            else if (occurrence.Member.SessionType != Domain.Enums.SessionType.Group)
+            {
+                var hasConflict = await db.Bookings.AnyAsync(b =>
+                    b.ProviderId == request.ProviderId &&
+                    b.Status != Domain.Enums.BookingStatus.Cancelled &&
+                    b.Status != Domain.Enums.BookingStatus.NoShow &&
+                    b.StartUtc < occurrence.EndUtc && b.EndUtc > occurrence.StartUtc, cancellationToken);
+                if (hasConflict)
+                    throw new SlotNotAvailableException(occurrence.StartUtc);
             }
         }
-        else if (service.SessionType != Domain.Enums.SessionType.Group)
-        {
-            var endUtc = effectiveStart.AddMinutes(blockMinutes);
-            var hasConflict = await db.Bookings.AnyAsync(b =>
-                b.ProviderId == request.ProviderId &&
-                b.Status != Domain.Enums.BookingStatus.Cancelled &&
-                b.Status != Domain.Enums.BookingStatus.NoShow &&
-                b.StartUtc < endUtc && b.EndUtc > effectiveStart, cancellationToken);
-            if (hasConflict)
-                throw new SlotNotAvailableException(effectiveStart);
-        }
+
+        var recurrenceGroupId = occurrences.Count > 1 ? Guid.NewGuid() : (Guid?)null;
 
         var bookings = new List<Booking>();
-        for (int w = 0; w < weeks; w++)
+        foreach (var occurrence in occurrences)
         {
-            var startUtc = effectiveStart.AddDays(7 * w);
-            var endUtc = startUtc.AddMinutes(blockMinutes);
-            var b = Booking.Create(tenantId, service.Id, service.ProviderId, clientId,
-                startUtc, endUtc, service.Price, service.Currency, request.ClientNotes, recurrenceGroupId);
+            var b = Booking.Create(tenantId, occurrence.Member.Id, occurrence.Member.ProviderId, clientId,
+                occurrence.StartUtc, occurrence.EndUtc, service.Price, service.Currency, request.ClientNotes, recurrenceGroupId);
             b.Confirm();
             bookings.Add(b);
         }
