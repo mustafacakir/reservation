@@ -55,7 +55,7 @@ function fmtUtc(utc: string) {
 // ── Slot picker ───────────────────────────────────────────────────────────────
 
 function SlotPicker({
-  providerId, serviceId, durationMinutes, selectedStart, onSelect,
+  providerId, serviceId, selectedStart, onSelect,
 }: {
   providerId: string
   serviceId: string

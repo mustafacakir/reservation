@@ -27,7 +27,7 @@ function fmtDate(utc: string) {
 
 // ── Slot picker ───────────────────────────────────────────────────────────────
 
-function SlotPicker({ providerId, serviceId, durationMinutes, selectedSlotStart, onSelect }: {
+function SlotPicker({ providerId, serviceId, selectedSlotStart, onSelect }: {
   providerId: string; serviceId: string; durationMinutes: number
   selectedSlotStart: string | null; onSelect: (start: string, label: string) => void
 }) {

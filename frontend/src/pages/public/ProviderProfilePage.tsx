@@ -72,7 +72,7 @@ function Avatar({ name, avatarUrl, size }: { name: string; avatarUrl?: string | 
 // ── Slot Picker ───────────────────────────────────────────────────────────────
 
 function SlotPicker({
-  providerId, serviceId, durationMinutes, onSelect, selectedSlotStart,
+  providerId, serviceId, onSelect, selectedSlotStart,
 }: {
   providerId: string
   serviceId: string
