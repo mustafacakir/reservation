@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Cookie, X } from 'lucide-react'
+import { loadGoogleAnalytics } from '@/lib/analytics'
 
 const STORAGE_KEY = 'cookie-consent'
 
@@ -13,6 +14,7 @@ export default function CookieConsentBanner() {
 
   const accept = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accepted: true, date: new Date().toISOString() }))
+    loadGoogleAnalytics()
     setVisible(false)
   }
 
