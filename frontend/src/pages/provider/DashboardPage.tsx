@@ -26,6 +26,18 @@ function toIsoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Groups multi-day lesson series (same seriesId) together so they share one color/legend entry. */
+function groupByProgram(services: ServiceItem[]): ServiceItem[][] {
+  const order: string[] = []
+  const map = new Map<string, ServiceItem[]>()
+  for (const s of services) {
+    const key = (s as any).seriesId ?? s.id
+    if (!map.has(key)) { map.set(key, []); order.push(key) }
+    map.get(key)!.push(s)
+  }
+  return order.map((key) => map.get(key)!)
+}
+
 function WeeklySchedule({ slots, services, isLoading, bookings }: {
   slots: WeeklySlot[]
   services: ServiceItem[]
@@ -95,21 +107,25 @@ function WeeklySchedule({ slots, services, isLoading, bookings }: {
       }
     })
 
-  const fixedEvents = services.filter(s => s.scheduledStart).flatMap((s, i) => {
-    const baseStart = new Date(s.scheduledStart!)
-    const baseEnd = s.scheduledEnd ? new Date(s.scheduledEnd) : new Date(baseStart.getTime() + s.durationMinutes * 60000)
-    const weeks = s.recurrenceWeeks ?? 1
-    for (let w = 0; w < weeks; w++) {
-      const st = new Date(baseStart.getTime() + w * 7 * 24 * 60 * 60 * 1000)
-      const stDay = new Date(st); stDay.setHours(0, 0, 0, 0)
-      if (stDay >= monday && stDay < weekEnd) {
-        const en = new Date(baseEnd.getTime() + w * 7 * 24 * 60 * 60 * 1000)
-        const stMs = st.getTime()
-        const count = bookings.filter(b => b.serviceId === s.id && new Date(b.startUtc).getTime() === stMs && (b.status === 'Confirmed' || b.status === 'Pending')).length
-        return [{ s, col: jsDowToCol(st.getDay()), startH: st.getHours() + st.getMinutes() / 60, endH: en.getHours() + en.getMinutes() / 60, tStart: st.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), tEnd: en.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), pal: PALETTES[i % PALETTES.length], count }]
+  const fixedPrograms = groupByProgram(services.filter(s => s.scheduledStart))
+  const fixedEvents = fixedPrograms.flatMap((group, i) => {
+    const pal = PALETTES[i % PALETTES.length]
+    return group.flatMap((s) => {
+      const baseStart = new Date(s.scheduledStart!)
+      const baseEnd = s.scheduledEnd ? new Date(s.scheduledEnd) : new Date(baseStart.getTime() + s.durationMinutes * 60000)
+      const weeks = s.recurrenceWeeks ?? 1
+      for (let w = 0; w < weeks; w++) {
+        const st = new Date(baseStart.getTime() + w * 7 * 24 * 60 * 60 * 1000)
+        const stDay = new Date(st); stDay.setHours(0, 0, 0, 0)
+        if (stDay >= monday && stDay < weekEnd) {
+          const en = new Date(baseEnd.getTime() + w * 7 * 24 * 60 * 60 * 1000)
+          const stMs = st.getTime()
+          const count = bookings.filter(b => b.serviceId === s.id && new Date(b.startUtc).getTime() === stMs && (b.status === 'Confirmed' || b.status === 'Pending')).length
+          return [{ s, col: jsDowToCol(st.getDay()), startH: st.getHours() + st.getMinutes() / 60, endH: en.getHours() + en.getMinutes() / 60, tStart: st.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), tEnd: en.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), pal, count }]
+        }
       }
-    }
-    return []
+      return []
+    })
   })
 
   const dateSlotTimes = dateSlots.flatMap(ds => ds.ranges)
@@ -122,7 +138,8 @@ function WeeklySchedule({ slots, services, isLoading, bookings }: {
   const totalH = (maxH - minH) * HOUR_PX
   const todayCol = weekOffset === 0 ? jsDowToCol(todayJsDow) : -1
   const activeCount = Object.values(availByCol).filter(r => r.length > 0).length + dateSlots.length
-  const totalHours = slots.reduce((sum, s) => sum + parseHM(s.endTime) - parseHM(s.startTime), 0)
+  const dateSlotHours = dateSlots.reduce((sum, ds) => sum + ds.ranges.reduce((s2, r) => s2 + parseHM(r.endTime) - parseHM(r.startTime), 0), 0)
+  const totalHours = slots.reduce((sum, s) => sum + parseHM(s.endTime) - parseHM(s.startTime), 0) + dateSlotHours
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -134,7 +151,7 @@ function WeeklySchedule({ slots, services, isLoading, bookings }: {
           <div>
             <h2 className="font-semibold text-gray-900 text-sm leading-none">Takvim</h2>
             {!isLoading && activeCount > 0 && (
-              <p className="text-xs text-gray-400 mt-0.5">{activeCount} gün · {Math.round(totalHours)} saat/hafta</p>
+              <p className="text-xs text-gray-400 mt-0.5">{activeCount} gün · {Math.round(totalHours)} saat müsait</p>
             )}
           </div>
         </div>
@@ -263,10 +280,10 @@ function WeeklySchedule({ slots, services, isLoading, bookings }: {
                   <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--color-primary)' }} />
                   <span className="text-[10px] text-gray-400">Onaylı ders</span>
                 </div>
-                {services.filter(s => s.scheduledStart).map((s, i) => (
+                {fixedPrograms.map((group, i) => (
                   <div key={i} className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-sm" style={{ background: PALETTES[i % PALETTES.length].bg, border: `1px solid ${PALETTES[i % PALETTES.length].bd}` }} />
-                    <span className="text-[10px] text-gray-400">{s.name}</span>
+                    <span className="text-[10px] text-gray-400">{group[0].name}</span>
                   </div>
                 ))}
               </div>

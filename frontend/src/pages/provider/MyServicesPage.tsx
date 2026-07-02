@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, BookOpen, Users, User, Pencil, Trash2, X, Clock, Tag, Video } from 'lucide-react'
+import { Plus, BookOpen, Users, User, Pencil, Trash2, X, Clock, Video, CalendarClock, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -12,12 +12,6 @@ function toHHMM(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
   return h > 0 ? `${h}s ${m > 0 ? m + 'dk' : ''}`.trim() : `${m}dk`
-}
-
-function stripHtml(html: string) {
-  const div = document.createElement('div')
-  div.innerHTML = html
-  return div.textContent?.trim() ?? ''
 }
 
 interface ServiceForm {
@@ -116,6 +110,109 @@ function groupBlockInfo(durationMinutes: number, startStr: string, endTimeStr: s
 const emptyForm: ServiceForm = { name: '', description: '', durationMinutes: 60, price: 0, currency: 'TRY', sessionType: 'Individual', maxParticipants: null, recurrenceWeeks: null, scheduledStart: null, scheduledEndTime: null, zoomLink: null, zoomMeetingId: null, zoomPassword: null, sortOrder: 0, seriesId: null }
 const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent bg-white transition-colors'
 
+const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+const QUARTER_MINUTES = ['00', '15', '30', '45']
+
+function toDateStr(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function getMonthCells(year: number, month: number): (number | null)[] {
+  const startDow = (new Date(year, month, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  return [...Array(startDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+}
+
+/** Always-visible month calendar for picking a single date (YYYY-MM-DD). */
+function InlineCalendar({ value, onChange }: { value: string | null; onChange: (date: string) => void }) {
+  const today = new Date()
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate())
+  const initial = value ? new Date(`${value}T00:00:00`) : today
+  const [year, setYear] = useState(initial.getFullYear())
+  const [month, setMonth] = useState(initial.getMonth())
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear((y) => y - 1) } else setMonth((m) => m - 1) }
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear((y) => y + 1) } else setMonth((m) => m + 1) }
+  const cells = getMonthCells(year, month)
+  const isPastMonth = year === today.getFullYear() && month === today.getMonth()
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3">
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={prevMonth} disabled={isPastMonth} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 transition-colors">
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-bold text-gray-800">{MONTH_NAMES[month]} {year}</span>
+        <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7">
+        {DAY_LABELS.map((d) => (
+          <div key={d} className="text-center text-[10px] font-semibold text-gray-400 uppercase py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />
+          const dateStr = toDateStr(year, month, day)
+          const isPast = dateStr < todayStr
+          const isSelected = dateStr === value
+          const isToday = dateStr === todayStr
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={isPast}
+              onClick={() => onChange(dateStr)}
+              className={[
+                'flex items-center justify-center rounded-lg text-sm font-medium transition-all h-9',
+                isPast ? 'text-gray-200 cursor-not-allowed'
+                  : isSelected ? 'text-white shadow-sm'
+                  : 'text-gray-700 hover:bg-gray-100',
+                isToday && !isSelected ? 'underline decoration-dotted underline-offset-2' : '',
+              ].join(' ')}
+              style={isSelected ? { background: 'var(--color-primary)' } : {}}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Hour + quarter-hour minute selects (00/15/30/45) producing an HH:mm string. */
+function QuarterTimeSelect({ value, onChange }: { value: string | null; onChange: (time: string) => void }) {
+  const [h, m] = value ? value.split(':') : ['', '']
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <select
+        value={h}
+        onChange={(e) => onChange(`${e.target.value}:${m || '00'}`)}
+        className={inputCls}
+      >
+        <option value="" disabled>Saat</option>
+        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((hh) => (
+          <option key={hh} value={hh}>{hh}</option>
+        ))}
+      </select>
+      <select
+        value={m}
+        onChange={(e) => onChange(`${h || '09'}:${e.target.value}`)}
+        className={inputCls}
+      >
+        <option value="" disabled>Dakika</option>
+        {QUARTER_MINUTES.map((mm) => (
+          <option key={mm} value={mm}>{mm}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 interface GroupMember { id: string; scheduledStart: string }
 interface EditGroupPayload {
   updates: { id: string; form: ServiceForm }[]
@@ -133,10 +230,19 @@ function ServiceFormPanel({ initial, title, onSave, onSaveMultiple, allowMultiDa
   const [form, setForm] = useState<ServiceForm>(initial)
   const [extraDays, setExtraDays] = useState<number[]>(() => (existingGroupMembers ?? []).map((m) => new Date(m.scheduledStart).getDay()))
   const [conflictNames, setConflictNames] = useState<string[] | null>(null)
+  const [step, setStep] = useState(1)
+  const [lastPrice, setLastPrice] = useState(initial.price > 0 ? initial.price : 0)
+  const [isFree, setIsFree] = useState(initial.price === 0)
   const set = (patch: Partial<ServiceForm>) => { setConflictNames(null); setForm((f) => ({ ...f, ...patch })) }
   const toggleExtraDay = (day: number) => { setConflictNames(null); setExtraDays((d) => d.includes(day) ? d.filter((x) => x !== day) : [...d, day]) }
   const isGroup = form.sessionType === 'Group'
   const canSave = form.name.trim() && form.price >= 0 && (!isGroup || ((form.maxParticipants ?? 0) > 0 && !!form.scheduledStart && !!form.scheduledEndTime))
+
+  const step1Valid = form.name.trim().length > 0
+  const step2Valid = !isGroup || (Boolean(form.maxParticipants && form.maxParticipants > 0) && !!form.scheduledStart && !!form.scheduledEndTime)
+  const step3Valid = form.price >= 0
+  const maxReachableStep = step1Valid ? (step2Valid ? (step3Valid ? 4 : 3) : 2) : 1
+  const goToStep = (n: number) => { if (n <= maxReachableStep) setStep(n) }
 
   const computeDayForms = (): ServiceForm[] => {
     if (!form.scheduledStart) return [form]
@@ -258,181 +364,249 @@ function ServiceFormPanel({ initial, title, onSave, onSaveMultiple, allowMultiDa
         </button>
       </div>
 
-      <div className="p-5 space-y-4">
-        {/* Name */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ders Adı *</label>
-          <input type="text" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="ör. Ortaokul Matematik" className={inputCls} />
-        </div>
-
-        {/* Sort order */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sıra Numarası</label>
-          <input type="number" min={0} value={form.sortOrder} onChange={(e) => set({ sortOrder: parseInt(e.target.value) || 0 })} placeholder="0" className={inputCls} />
-          <p className="text-xs text-gray-400 mt-1">Küçük numara önce görünür. Aynı numara varsa isme göre sıralanır.</p>
-        </div>
-
-        {/* Description — rich text */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Açıklama</label>
-
-          {/* Toolbar */}
-          <div className="flex items-center gap-1 flex-wrap border border-gray-200 rounded-t-xl px-2 py-1.5 bg-gray-50">
-            <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()}
-              className={`px-2.5 py-1 rounded-lg text-sm font-bold transition-colors ${editor?.isActive('bold') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>B</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}
-              className={`px-2.5 py-1 rounded-lg text-sm italic transition-colors ${editor?.isActive('italic') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>I</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              className={`px-2.5 py-1 rounded-lg text-sm transition-colors ${editor?.isActive('bulletList') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>• Liste</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              className={`px-2.5 py-1 rounded-lg text-sm transition-colors ${editor?.isActive('orderedList') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>1. Liste</button>
-            <div className="w-px h-5 bg-gray-200 mx-1" />
-            <div ref={emojiRef} className="relative">
-              <button type="button" onClick={() => setShowEmoji((v) => !v)}
-                className="px-2.5 py-1 rounded-lg text-sm transition-colors text-gray-500 hover:text-gray-800 hover:bg-white" title="Emoji ekle">😊</button>
-              {showEmoji && (
-                <div className="absolute left-0 top-9 z-50">
-                  <EmojiPicker onEmojiClick={handleEmojiClick} theme={Theme.LIGHT} height={380} width={320} searchPlaceholder="Emoji ara…" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Editor area */}
-          <div
-            className="min-h-[100px] border border-t-0 border-gray-200 rounded-b-xl px-3 py-2.5 text-sm focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:border-transparent cursor-text"
-            onClick={() => editor?.commands.focus()}
-          >
-            <EditorContent editor={editor} />
-          </div>
-          <style>{`
-            .tiptap p.is-editor-empty:first-child::before {
-              content: attr(data-placeholder);
-              float: left; color: #9ca3af; pointer-events: none; height: 0;
-            }
-            .tiptap:focus { outline: none; }
-            .tiptap ul { list-style-type: disc; padding-left: 1.25rem; }
-            .tiptap ol { list-style-type: decimal; padding-left: 1.25rem; }
-            .tiptap strong { font-weight: 700; }
-            .tiptap em { font-style: italic; }
-          `}</style>
-        </div>
-
-        {/* Session type */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ders Türü</label>
-          <div className="grid grid-cols-2 gap-2">
-            {(['Individual', 'Group'] as const).map((type) => {
-              const active = form.sessionType === type
-              const Icon = type === 'Individual' ? User : Users
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null })}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
-                    active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                  }`}
-                  style={active ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 px-5 pt-4">
+        {[
+          { n: 1, label: 'Temel Bilgiler' },
+          { n: 2, label: 'Tür & Program' },
+          { n: 3, label: 'Süre & Ücret' },
+          { n: 4, label: 'Ek Bilgiler' },
+        ].map(({ n, label }, i) => {
+          const reachable = n <= maxReachableStep
+          const done = n < step
+          const active = n === step
+          return (
+            <div key={n} className="flex items-center gap-2 flex-1">
+              <button
+                type="button"
+                onClick={() => goToStep(n)}
+                disabled={!reachable}
+                className="flex items-center gap-2 group"
+              >
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors"
+                  style={
+                    active ? { background: 'var(--color-primary)', color: '#fff' }
+                    : done ? { background: 'var(--color-primary-light)', color: 'var(--color-primary)' }
+                    : { background: '#f3f4f6', color: '#9ca3af' }
+                  }
                 >
-                  <Icon size={15} />
-                  {type === 'Individual' ? 'Bireysel' : 'Grup'}
-                </button>
-              )
-            })}
+                  {done ? <Check size={12} /> : n}
+                </span>
+                <span className={`text-xs font-medium hidden sm:inline ${active ? 'text-gray-900' : 'text-gray-400'} ${reachable && !active ? 'group-hover:text-gray-600' : ''}`}>
+                  {label}
+                </span>
+              </button>
+              {i < 3 && <div className="flex-1 h-px" style={{ background: n < step ? 'var(--color-primary-light)' : '#f3f4f6' }} />}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="p-5 space-y-6">
+        {/* Adım 1: Temel bilgiler */}
+        {step === 1 && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ders Adı *</label>
+            <input type="text" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="ör. Ortaokul Matematik" className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Açıklama</label>
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-1 flex-wrap border border-gray-200 rounded-t-xl px-2 py-1.5 bg-gray-50">
+              <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`px-2.5 py-1 rounded-lg text-sm font-bold transition-colors ${editor?.isActive('bold') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>B</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`px-2.5 py-1 rounded-lg text-sm italic transition-colors ${editor?.isActive('italic') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>I</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                className={`px-2.5 py-1 rounded-lg text-sm transition-colors ${editor?.isActive('bulletList') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>• Liste</button>
+              <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                className={`px-2.5 py-1 rounded-lg text-sm transition-colors ${editor?.isActive('orderedList') ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-800 hover:bg-white'}`}>1. Liste</button>
+              <div className="w-px h-5 bg-gray-200 mx-1" />
+              <div ref={emojiRef} className="relative">
+                <button type="button" onClick={() => setShowEmoji((v) => !v)}
+                  className="px-2.5 py-1 rounded-lg text-sm transition-colors text-gray-500 hover:text-gray-800 hover:bg-white" title="Emoji ekle">😊</button>
+                {showEmoji && (
+                  <div className="absolute left-0 top-9 z-50">
+                    <EmojiPicker onEmojiClick={handleEmojiClick} theme={Theme.LIGHT} height={380} width={320} searchPlaceholder="Emoji ara…" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Editor area */}
+            <div
+              className="min-h-[180px] border border-t-0 border-gray-200 rounded-b-xl px-3 py-2.5 text-sm focus-within:ring-2 focus-within:ring-[var(--color-primary)] focus-within:border-transparent cursor-text"
+              onClick={() => editor?.commands.focus()}
+            >
+              <EditorContent editor={editor} />
+            </div>
+            <style>{`
+              .tiptap p.is-editor-empty:first-child::before {
+                content: attr(data-placeholder);
+                float: left; color: #9ca3af; pointer-events: none; height: 0;
+              }
+              .tiptap:focus { outline: none; }
+              .tiptap ul { list-style-type: disc; padding-left: 1.25rem; }
+              .tiptap ol { list-style-type: decimal; padding-left: 1.25rem; }
+              .tiptap strong { font-weight: 700; }
+              .tiptap em { font-style: italic; }
+            `}</style>
           </div>
         </div>
-
-        {/* Max participants */}
-        {isGroup && (
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kontenjan *</label>
-            <input type="number" min={2} max={500} value={form.maxParticipants ?? 10} onChange={(e) => set({ maxParticipants: parseInt(e.target.value) || 10 })} className={inputCls} />
-            <p className="text-xs text-gray-400 mt-1">Kontenjan dolduğunda yeni rezervasyon alınamaz.</p>
-          </div>
         )}
 
-        {/* Schedule */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Adım 2: Tür & Program */}
+        {step === 2 && (
+        <>
+        <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Tarih ve Başlangıç Saati {isGroup ? '*' : <span className="font-normal normal-case text-gray-400">(isteğe bağlı)</span>}
-            </label>
-            <input type="datetime-local" value={form.scheduledStart ?? ''} onChange={(e) => set({ scheduledStart: e.target.value || null })} className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Bitiş Saati {isGroup ? '*' : ''}
-            </label>
-            <input type="time" value={form.scheduledEndTime ?? ''} onChange={(e) => set({ scheduledEndTime: e.target.value || null })} className={inputCls} />
-          </div>
-        </div>
-
-        {(allowMultiDay || onSaveEditGroup) && form.scheduledStart && (
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ek Günler (aynı saatte)</label>
-            <div className="grid grid-cols-7 gap-1.5">
-              {WEEKDAY_OPTIONS.map(({ label, value }) => {
-                const anchorDay = new Date(`${form.scheduledStart!.split('T')[0]}T00:00:00`).getDay()
-                const isAnchor = value === anchorDay
-                const active = isAnchor || extraDays.includes(value)
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ders Türü</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['Individual', 'Group'] as const).map((type) => {
+                const active = form.sessionType === type
+                const Icon = type === 'Individual' ? User : Users
                 return (
                   <button
-                    key={value}
+                    key={type}
                     type="button"
-                    disabled={isAnchor}
-                    onClick={() => toggleExtraDay(value)}
-                    className={`py-2 rounded-lg text-xs font-medium border-2 transition-all ${active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'} ${isAnchor ? 'opacity-70 cursor-default' : ''}`}
+                    onClick={() => set({ sessionType: type, maxParticipants: type === 'Group' ? 10 : null })}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                      active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
                     style={active ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}
                   >
-                    {label}
+                    <Icon size={15} />
+                    {type === 'Individual' ? 'Bireysel' : 'Grup'}
                   </button>
                 )
               })}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Başlangıç tarihinin günü otomatik seçilidir. Aynı saatte tekrar edeceği diğer günleri işaretleyin — her gün için ayrı bir ders kaydı oluşturulur.</p>
           </div>
-        )}
 
-        {isGroup && (() => {
-          if (!form.scheduledStart || !form.scheduledEndTime) return null
-          const info = groupBlockInfo(form.durationMinutes, form.scheduledStart, form.scheduledEndTime)
-          if (!info || info.sessionCount <= 0) return (
-            <p className="text-xs text-red-500">Bitiş saati başlangıçtan sonra olmalı.</p>
-          )
-          return (
-            <div className="px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-800">
-              <strong>{info.sessionCount} seans</strong> × {form.durationMinutes} dk
-              {info.breakMinutes > 0 && <> (aralarında {info.breakMinutes} dk mola)</>}
-              {' '}→ toplam {info.blockMinutes} dk
+          {isGroup && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kontenjan *</label>
+              <input type="number" min={2} max={500} value={form.maxParticipants ?? 10} onChange={(e) => set({ maxParticipants: parseInt(e.target.value) || 10 })} className={inputCls} />
+              <p className="text-xs text-gray-400 mt-1">Kontenjan dolduğunda yeni rezervasyon alınamaz.</p>
             </div>
-          )
-        })()}
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kaç Hafta Tekrarlansın?</label>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <button type="button" onClick={() => set({ recurrenceWeeks: null })}
-              className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${!form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
-              style={!form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}>
-              Tek seferlik
-            </button>
-            <button type="button" onClick={() => set({ recurrenceWeeks: 4 })}
-              className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
-              style={form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : { background: '#fff' }}>
-              Haftalık tekrar
-            </button>
-          </div>
-          {form.recurrenceWeeks && (
-            <>
-              <input type="number" min={2} max={52} value={form.recurrenceWeeks}
-                onChange={(e) => set({ recurrenceWeeks: parseInt(e.target.value) || 4 })} className={inputCls} />
-              <p className="text-xs text-gray-400 mt-1">Aynı gün ve saatte {form.recurrenceWeeks} hafta boyunca tekrarlanır.</p>
-            </>
           )}
         </div>
 
-        {/* Duration + Price */}
+        {/* Ders programı */}
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <CalendarClock size={14} style={{ color: 'var(--color-primary)' }} />
+            <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Ders Programı</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              Tarih {isGroup ? '*' : <span className="text-gray-400">(isteğe bağlı)</span>}
+            </label>
+            <InlineCalendar
+              value={form.scheduledStart ? form.scheduledStart.split('T')[0] : null}
+              onChange={(date) => {
+                const time = form.scheduledStart ? form.scheduledStart.split('T')[1] : '09:00'
+                set({ scheduledStart: `${date}T${time}` })
+              }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Başlangıç Saati {isGroup ? '*' : ''}
+              </label>
+              <QuarterTimeSelect
+                value={form.scheduledStart ? form.scheduledStart.split('T')[1] : null}
+                onChange={(time) => {
+                  const today = new Date()
+                  const date = form.scheduledStart ? form.scheduledStart.split('T')[0] : toDateStr(today.getFullYear(), today.getMonth(), today.getDate())
+                  set({ scheduledStart: `${date}T${time}` })
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Bitiş Saati {isGroup ? '*' : ''}
+              </label>
+              <QuarterTimeSelect value={form.scheduledEndTime} onChange={(time) => set({ scheduledEndTime: time })} />
+            </div>
+          </div>
+
+          {(allowMultiDay || onSaveEditGroup) && form.scheduledStart && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Ek Günler (aynı saatte)</label>
+              <div className="grid grid-cols-7 gap-1.5">
+                {WEEKDAY_OPTIONS.map(({ label, value }) => {
+                  const anchorDay = new Date(`${form.scheduledStart!.split('T')[0]}T00:00:00`).getDay()
+                  const isAnchor = value === anchorDay
+                  const active = isAnchor || extraDays.includes(value)
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={isAnchor}
+                      onClick={() => toggleExtraDay(value)}
+                      className={`py-2 rounded-lg text-xs font-medium border-2 transition-all bg-white ${active ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'} ${isAnchor ? 'opacity-70 cursor-default' : ''}`}
+                      style={active ? { background: 'var(--color-primary-light)' } : {}}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Başlangıç tarihinin günü otomatik seçilidir. Diğer günleri işaretleyin — her gün için ayrı bir ders kaydı oluşturulur.</p>
+            </div>
+          )}
+
+          {isGroup && (() => {
+            if (!form.scheduledStart || !form.scheduledEndTime) return null
+            const info = groupBlockInfo(form.durationMinutes, form.scheduledStart, form.scheduledEndTime)
+            if (!info || info.sessionCount <= 0) return (
+              <p className="text-xs text-red-500">Bitiş saati başlangıçtan sonra olmalı.</p>
+            )
+            return (
+              <div className="px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-800">
+                <strong>{info.sessionCount} seans</strong> × {form.durationMinutes} dk
+                {info.breakMinutes > 0 && <> (aralarında {info.breakMinutes} dk mola)</>}
+                {' '}→ toplam {info.blockMinutes} dk
+              </div>
+            )
+          })()}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Tekrar</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => set({ recurrenceWeeks: null })}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white ${!form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
+                style={!form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : {}}>
+                Tek seferlik
+              </button>
+              <button type="button" onClick={() => set({ recurrenceWeeks: 4 })}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white ${form.recurrenceWeeks ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-gray-200 text-gray-500'}`}
+                style={form.recurrenceWeeks ? { background: 'var(--color-primary-light)' } : {}}>
+                Haftalık tekrar
+              </button>
+            </div>
+            {form.recurrenceWeeks && (
+              <>
+                <input type="number" min={2} max={52} value={form.recurrenceWeeks}
+                  onChange={(e) => set({ recurrenceWeeks: parseInt(e.target.value) || 4 })} className={`${inputCls} mt-2`} />
+                <p className="text-xs text-gray-400 mt-1">Aynı gün ve saatte {form.recurrenceWeeks} hafta boyunca tekrarlanır.</p>
+              </>
+            )}
+          </div>
+        </div>
+        </>
+        )}
+
+        {/* Adım 3: Süre & Ücret */}
+        {step === 3 && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Süre (dakika)</label>
@@ -441,35 +615,67 @@ function ServiceFormPanel({ initial, title, onSave, onSaveMultiple, allowMultiDa
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ücret (₺) *</label>
-            <input type="number" value={form.price} onChange={(e) => set({ price: parseFloat(e.target.value) || 0 })} className={inputCls} />
+            <input
+              type="number"
+              value={form.price}
+              disabled={isFree}
+              onChange={(e) => { const v = parseFloat(e.target.value) || 0; setLastPrice(v); set({ price: v }) }}
+              className={`${inputCls} ${isFree ? 'opacity-50 cursor-not-allowed' : ''}`}
+            />
+            <label className="flex items-center gap-2 mt-2 text-xs font-medium text-gray-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isFree}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setIsFree(checked)
+                  if (checked) { setLastPrice(form.price || lastPrice); set({ price: 0 }) }
+                  else { set({ price: lastPrice > 0 ? lastPrice : form.price }) }
+                }}
+                className="rounded border-gray-300"
+                style={{ accentColor: 'var(--color-primary)' }}
+              />
+              Ücretsiz ders
+            </label>
           </div>
         </div>
+        )}
 
-        {/* Zoom bilgileri */}
-        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Video size={14} style={{ color: 'var(--color-primary)' }} />
-            <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Zoom Bilgileri</span>
-            <span className="text-[10px] text-gray-400 font-normal normal-case">(isteğe bağlı — rezervasyon onayında öğrenciye gönderilir)</span>
-          </div>
+        {/* Adım 4: Ek Bilgiler — sıra numarası + Zoom */}
+        {step === 4 && (
+        <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Meeting Linki</label>
-            <input type="url" value={form.zoomLink ?? ''} onChange={(e) => set({ zoomLink: e.target.value || null })} placeholder="https://zoom.us/j/..." className={inputCls} />
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sıra Numarası</label>
+            <input type="number" min={0} value={form.sortOrder} onChange={(e) => set({ sortOrder: parseInt(e.target.value) || 0 })} placeholder="0" className={inputCls} />
+            <p className="text-xs text-gray-400 mt-1">Küçük numara önce görünür. Aynı numara varsa isme göre sıralanır.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Meeting ID</label>
-              <input type="text" value={form.zoomMeetingId ?? ''} onChange={(e) => set({ zoomMeetingId: e.target.value || null })} placeholder="123 456 7890" className={inputCls} />
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Video size={14} style={{ color: 'var(--color-primary)' }} />
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Zoom Bilgileri</span>
+              <span className="text-[10px] text-gray-400 font-normal normal-case">(rezervasyon onayında öğrenciye gönderilir)</span>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Şifre</label>
-              <input type="text" value={form.zoomPassword ?? ''} onChange={(e) => set({ zoomPassword: e.target.value || null })} placeholder="abc123" className={inputCls} />
+              <label className="block text-xs font-medium text-gray-500 mb-1">Meeting Linki</label>
+              <input type="url" value={form.zoomLink ?? ''} onChange={(e) => set({ zoomLink: e.target.value || null })} placeholder="https://zoom.us/j/..." className={inputCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Meeting ID</label>
+                <input type="text" value={form.zoomMeetingId ?? ''} onChange={(e) => set({ zoomMeetingId: e.target.value || null })} placeholder="123 456 7890" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Şifre</label>
+                <input type="text" value={form.zoomPassword ?? ''} onChange={(e) => set({ zoomPassword: e.target.value || null })} placeholder="abc123" className={inputCls} />
+              </div>
             </div>
           </div>
         </div>
+        )}
       </div>
 
-      {conflictNames && conflictNames.length > 0 && (
+      {step === 4 && conflictNames && conflictNames.length > 0 && (
         <div className="px-5 pb-3">
           <div className="px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
             <strong>Saat çakışması:</strong> "{conflictNames.join('", "')}" dersiyle çakışıyor. Yine de kaydetmek için tekrar "Yine de Kaydet"e basın.
@@ -478,14 +684,33 @@ function ServiceFormPanel({ initial, title, onSave, onSaveMultiple, allowMultiDa
       )}
 
       <div className="flex gap-2 px-5 pb-5">
-        <button
-          onClick={handleSaveClick}
-          disabled={isPending || !canSave}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-          style={{ background: conflictNames ? '#d97706' : 'var(--color-primary)' }}
-        >
-          {isPending ? 'Kaydediliyor…' : conflictNames ? 'Yine de Kaydet' : 'Kaydet'}
-        </button>
+        {step > 1 && (
+          <button
+            onClick={() => setStep((s) => s - 1)}
+            className="flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <ChevronLeft size={15} /> Geri
+          </button>
+        )}
+        {step < 4 ? (
+          <button
+            onClick={() => setStep((s) => Math.min(4, s + 1))}
+            disabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
+            className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            İleri <ChevronRight size={15} />
+          </button>
+        ) : (
+          <button
+            onClick={handleSaveClick}
+            disabled={isPending || !canSave}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+            style={{ background: conflictNames ? '#d97706' : 'var(--color-primary)' }}
+          >
+            {isPending ? 'Kaydediliyor…' : conflictNames ? 'Yine de Kaydet' : 'Kaydet'}
+          </button>
+        )}
         <button onClick={onCancel} className="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
           İptal
         </button>
@@ -576,6 +801,7 @@ export default function MyServicesPage() {
         />
       )}
 
+      {!showCreate && (
       <div className="space-y-3">
         {groupServices(services).map((group) => {
           const s = group[0]
@@ -662,11 +888,6 @@ export default function MyServicesPage() {
                               <Video size={10} /> Zoom bağlı
                             </span>
                           )}
-                          {s.description && (
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                              <Tag size={10} /> {stripHtml(s.description)}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -699,6 +920,7 @@ export default function MyServicesPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
