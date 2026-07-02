@@ -4,13 +4,13 @@ import { router } from './router'
 import { useAppConfig } from './hooks/useAppConfig'
 import { ToastProvider } from './components/ui/Toast'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
-import { initAnalyticsFromStoredConsent, trackPageView } from './lib/analytics'
+import { initGoogleAnalytics, trackPageView } from './lib/analytics'
 
 function AppInit() {
   useAppConfig()
 
   useEffect(() => {
-    initAnalyticsFromStoredConsent()
+    initGoogleAnalytics()
     let lastPath = window.location.pathname
     trackPageView(lastPath)
     return router.subscribe((state) => {

@@ -1,4 +1,5 @@
 const GA_MEASUREMENT_ID = 'G-7LXM0STXEH'
+const CONSENT_KEY = 'cookie-consent'
 
 declare global {
   interface Window {
@@ -7,42 +8,55 @@ declare global {
   }
 }
 
-let loaded = false
+function gtag(...args: unknown[]) {
+  window.dataLayer = window.dataLayer || []
+  window.dataLayer.push(args)
+}
 
-/** Injects gtag.js. Must only be called after the user has accepted cookie consent. */
-export function loadGoogleAnalytics() {
-  if (loaded || typeof window === 'undefined') return
-  loaded = true
+let initialized = false
+
+/**
+ * Injects gtag.js unconditionally on every page load (so Google's tag-verification tools can
+ * detect it), using Consent Mode to keep analytics storage/cookies OFF until the user accepts
+ * the cookie banner. Safe to call regardless of consent status.
+ */
+export function initGoogleAnalytics() {
+  if (initialized || typeof window === 'undefined') return
+  initialized = true
+
+  window.gtag = gtag
+  gtag('consent', 'default', {
+    ad_storage: 'denied',
+    analytics_storage: hasStoredConsent() ? 'granted' : 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+  })
 
   const script = document.createElement('script')
   script.async = true
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
   document.head.appendChild(script)
 
-  window.dataLayer = window.dataLayer || []
-  window.gtag = function gtag(...args: unknown[]) { window.dataLayer!.push(args) }
-  window.gtag('js', new Date())
-  window.gtag('config', GA_MEASUREMENT_ID)
+  gtag('js', new Date())
+  gtag('config', GA_MEASUREMENT_ID)
 }
 
-export function isAnalyticsLoaded() {
-  return loaded
+/** Call after the user accepts the cookie banner to unlock analytics storage/cookies. */
+export function grantAnalyticsConsent() {
+  gtag('consent', 'update', { analytics_storage: 'granted' })
 }
 
 /** Reports a client-side route change as a page_view (gtag's auto page_view only fires once on script load). */
 export function trackPageView(path: string) {
-  if (!loaded || !window.gtag) return
+  if (!initialized || !window.gtag) return
   window.gtag('event', 'page_view', { page_path: path })
 }
 
-const CONSENT_KEY = 'cookie-consent'
-
-/** Loads analytics immediately if the user already consented on a previous visit. */
-export function initAnalyticsFromStoredConsent() {
+export function hasStoredConsent(): boolean {
   try {
     const saved = localStorage.getItem(CONSENT_KEY)
-    if (saved && JSON.parse(saved).accepted) loadGoogleAnalytics()
+    return !!(saved && JSON.parse(saved).accepted)
   } catch {
-    // ignore malformed storage
+    return false
   }
 }
