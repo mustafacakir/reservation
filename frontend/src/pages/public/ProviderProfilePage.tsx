@@ -36,6 +36,13 @@ import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
 import { useToast } from '@/components/ui/Toast'
+import { useMetaTags } from '@/hooks/useMetaTags'
+
+function stripHtml(html: string) {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div.textContent?.trim() ?? ''
+}
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -448,7 +455,7 @@ export default function ProviderProfilePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated } = useAuthStore()
-  const { slug } = useTenantStore()
+  const { slug, name: tenantName } = useTenantStore()
   const toast = useToast()
 
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
@@ -466,6 +473,13 @@ export default function ProviderProfilePage() {
     queryKey: ['provider', id, slug],
     queryFn: () => providersApi.getById(id!),
     enabled: !!id && !!slug,
+  })
+
+  useMetaTags({
+    title: provider ? `${provider.fullName}${provider.specializations.length ? ` - ${provider.specializations.join(', ')}` : ''}${tenantName ? ` | ${tenantName}` : ''}` : undefined,
+    description: provider ? (stripHtml(provider.bio || '').slice(0, 155) || `${provider.fullName} ile ders rezervasyonu yapın.`) : undefined,
+    image: provider?.avatarUrl ?? undefined,
+    canonicalPath: id ? `/providers/${id}` : undefined,
   })
 
   const selectedService = provider?.services.find(s => s.id === selectedServiceId)

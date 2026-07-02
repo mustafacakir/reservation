@@ -43,6 +43,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - TenantSlug=${TENANT_SLUG:-math-masters}
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${DB_NAME:-reservation_db};Username=${DB_USER:-reservation_user};Password=${DB_PASSWORD:-devpassword}
       - Redis__ConnectionString=redis:6379
       - Jwt__Secret=${JWT_SECRET:-dev-secret-key-minimum-32-characters-long}

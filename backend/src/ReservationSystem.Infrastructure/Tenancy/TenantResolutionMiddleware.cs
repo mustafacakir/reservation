@@ -17,7 +17,10 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
         "/api/v1/payments/paytr/notify",
         "/api/v1/payments/paytr/complete",
         "/api/v1/pay",
-        "/uploads"
+        "/uploads",
+        "/robots.txt",
+        "/sitemap.xml",
+        "/providers",
     ];
 
     public async Task InvokeAsync(HttpContext context, ApplicationDbContext db, TenantService tenantService)
@@ -80,5 +83,5 @@ public class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantReso
     }
 
     private static bool IsExempt(PathString path)
-        => TenantExemptPaths.Any(p => path.StartsWithSegments(p));
+        => path.Value == "/" || TenantExemptPaths.Any(p => path.StartsWithSegments(p));
 }

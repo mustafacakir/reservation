@@ -10,6 +10,7 @@ import { providersApi } from '@/api/endpoints/providers.api'
 import { useTenantStore } from '@/store/tenant.store'
 import { getSectorConfig, type SectorFeatureCard } from '@/config/sectors'
 import Logo from '@/components/landing/Logo'
+import { useMetaTags } from '@/hooks/useMetaTags'
 
 // ── Icon map for feature cards ────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
-  const { slug, sector } = useTenantStore()
+  const { slug, sector, name: tenantName } = useTenantStore()
   const cfg = getSectorConfig(sector)
 
   const { data, isLoading } = useQuery({
@@ -91,6 +92,24 @@ export default function LandingPage() {
   })
 
   const providers = data?.items ?? []
+
+  const { data: allProviders } = useQuery({
+    queryKey: ['landing-providers-all', slug],
+    queryFn: () => providersApi.search({ page: 1, pageSize: 50 }),
+    enabled: !!slug,
+    staleTime: 1000 * 60 * 5,
+  })
+
+  useMetaTags({
+    title: tenantName ? `${tenantName} | Online Ders Rezervasyonu` : undefined,
+    description: (() => {
+      if (!tenantName) return undefined
+      const keywords = Array.from(new Set((allProviders?.items ?? []).flatMap((p) => p.specializations)))
+      if (keywords.length === 0) return `${tenantName} bünyesindeki öğretmenlerle ders rezervasyonu yapın.`
+      return `${tenantName}: ${keywords.slice(0, 15).join(', ')} alanlarında uzman öğretmenlerle online ders rezervasyonu yapın.`
+    })(),
+    canonicalPath: '/',
+  })
 
   const findProvidersForCategory = (catLabel: string, catSlug: string) => {
     if (providers.length === 0) return []

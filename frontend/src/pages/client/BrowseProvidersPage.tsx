@@ -6,6 +6,7 @@ import { providersApi } from '@/api/endpoints/providers.api'
 import type { ProviderSummary } from '@/types/provider.types'
 import { useTenantStore } from '@/store/tenant.store'
 import { getSectorConfig } from '@/config/sectors'
+import { useMetaTags } from '@/hooks/useMetaTags'
 
 function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: string; size?: 'md' | 'lg' }) {
   const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -72,10 +73,16 @@ function ProviderCard({ provider }: { provider: ProviderSummary }) {
 }
 
 export default function BrowseProvidersPage() {
-  const { slug, sector } = useTenantStore()
+  const { slug, sector, name: tenantName } = useTenantStore()
   const cfg = getSectorConfig(sector)
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
+
+  useMetaTags({
+    title: tenantName ? `Öğretmenler | ${tenantName}` : undefined,
+    description: tenantName ? `${tenantName} bünyesindeki öğretmenleri inceleyin ve ders rezervasyonu yapın.` : undefined,
+    canonicalPath: '/providers',
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['providers', slug],

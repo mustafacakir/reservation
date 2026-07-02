@@ -35,6 +35,11 @@ builder.Services.AddSignalR();
 // API
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient("Frontend", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Seo:FrontendBaseUrl"] ?? "http://frontend");
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "ReservationSystem API", Version = "v1" });

@@ -57,6 +57,15 @@ export function useAppConfig() {
         const cfg = getSectorConfig(tenant.sector)
         const subtitle = tenant.settings.customTagline ?? cfg.heroSubtitle
         document.title = `${tenant.name} | ${subtitle}`
+
+        let descTag = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+        if (!descTag) {
+          descTag = document.createElement('meta')
+          descTag.setAttribute('name', 'description')
+          document.head.appendChild(descTag)
+        }
+        const city = tenant.settings.city ? ` — ${tenant.settings.city}` : ''
+        descTag.setAttribute('content', `${tenant.name}: ${subtitle}${city}`)
       })
       .catch((err) => {
         console.warn('[AppConfig] Could not load tenant config:', err)
